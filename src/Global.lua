@@ -8,7 +8,7 @@ available_colors = {"White", "Yellow", "Red", "Teal"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = false
+debug = true
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -365,19 +365,18 @@ function onObjectNumberTyped(number_object, player_color, number_typed)
 end
 
 function tryObjectEnterContainer(container, object)
-    -- Check for specific tag requirements
-    local container_tags = {'Ship', 'Agent', 'Starport', 'City', 'Blight'}
-    for _, tag in ipairs(container_tags) do
-        if container.hasTag(tag) and not object.hasTag(tag) then
-            return false
-        end
-    end
 
-    -- allow objects with at least one shared container tag to enter
+    -- allow objects with at least one shared container tag to enter, with exceptions
     for _, tag in ipairs(container.getTags()) do
+        if tag == "TealPiece" or tag == "YellowPiece" or tag == "RedPiece" or tag ==
+            "WhitePiece" or tag == "lock" then
+            goto continue
+        end
+            
         if object.hasTag(tag) then
             return true
         end
+        ::continue::
     end
 
     return false
