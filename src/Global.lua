@@ -347,6 +347,11 @@ end
 function onObjectSpawn(object)
     Initiative.add_menu()
     Supplies.addMenuToObject(object)
+  -- If the zero marker spawns (or finishes loading), ensure its ambition button is attached
+  local ok, guid = pcall(function() return object.getGUID and object.getGUID() end)
+  if ok and guid and guid == zero_marker_GUID then
+    pcall(function() AmbitionMarkers.add_button() end)
+  end
 end
 
 function onObjectLeaveZone(zone, object)
@@ -1502,6 +1507,9 @@ function onLoad(script_state)
     Supplies.addMenuToAllObjects()
     -- Recreate visible counters (numbers) on supply containers and similar
     Counters.setup()
+
+    -- Ensure zero marker ambition button exists at startup
+    pcall(function() AmbitionMarkers.add_button() end)
 
     -- start periodic scan to ensure Draw-bottom is attached to any new decks
     schedule_scan()

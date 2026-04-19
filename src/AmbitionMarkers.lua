@@ -109,14 +109,77 @@ end
 
 function ambitionMarkers:add_button()
     local zero_marker = getObjectFromGUID(zero_marker_GUID)
-    zero_marker.createButton({
-        click_function = 'declare_ambition',
-        function_owner = zero_marker,
-        position = {0, 0.05, 0},
-        width = 3800,
-        height = 950,
-        tooltip = 'Declare Ambition'
-    })
+    -- If the zero marker object isn't present yet (load order), retry shortly
+    if not zero_marker then
+        Wait.time(function()
+            ambitionMarkers.add_button()
+        end, 0.5)
+        return
+    end
+
+    -- If a button already exists, edit it rather than creating a duplicate
+    local existing = {}
+    if zero_marker.getButtons then
+        existing = zero_marker.getButtons() or {}
+    end
+    for _, b in ipairs(existing) do
+        if b and b.click_function == 'declare_ambition' then
+            local ok, err = pcall(function()
+                zero_marker.editButton({
+                    click_function = 'declare_ambition',
+                    function_owner = zero_marker,
+                    position = {0, 0.05, 0},
+                    width = 3800,
+                    height = 950,
+                    tooltip = 'Declare Ambition'
+                })
+            end)
+            if ok then return end
+            break
+        end
+    end
+
+    -- Try creating the button, and verify it exists; if not, retry a few times
+    local function try_create(attempt)
+        attempt = attempt or 1
+        local ok, err = pcall(function()
+            zero_marker.createButton({
+                click_function = 'declare_ambition',
+                function_owner = zero_marker,
+                position = {0, 0.05, 0},
+                width = 3800,
+                height = 950,
+                tooltip = 'Declare Ambition'
+            })
+        end)
+
+        -- verify
+        local btn_exists = false
+        if zero_marker.getButtons then
+            local buttons = zero_marker.getButtons() or {}
+            for _, b in ipairs(buttons) do
+                if b and b.click_function == 'declare_ambition' then
+                    btn_exists = true
+                    break
+                end
+            end
+        end
+
+        if not btn_exists and attempt < 8 then
+            Wait.time(function()
+                -- ensure the zero_marker still exists
+                local zm = getObjectFromGUID(zero_marker_GUID)
+                if zm then
+                    ambitionMarkers.add_button_attempts = (ambitionMarkers.add_button_attempts or 0) + 1
+                    if ambitionMarkers.add_button_attempts < 8 then
+                        ambitionMarkers.add_button()
+                    end
+                end
+            end, 0.5)
+        end
+    end
+
+    try_create(1)
 end
 
 function ambitionMarkers:display_declare_button()
