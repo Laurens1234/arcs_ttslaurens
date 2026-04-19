@@ -808,19 +808,21 @@ function BaseGame.setupPlayers(ordered_players, setup_card)
 
         local starting_resources = pieces["resources"]
 
-        if not (starting_resources) then
-            starting_resources = {
-                resource:name_from_cluster(ABC["A"]["cluster"],
-                    ABC["A"]["system"]),
-                resource:name_from_cluster(ABC["B"]["cluster"],
-                    ABC["B"]["system"])
-            }
+        -- If the leader defines no starting resources, do not give any.
+        if starting_resources then
+            -- Allow a single resource string or a list of resources
+            if type(starting_resources) == "string" then
+                starting_resources = { starting_resources }
+            end
+
+            if type(starting_resources) == "table" and #starting_resources > 0 then
+                LOG.DEBUG("starting_resource: " .. tostring(starting_resources[1]))
+                player:take_resource(starting_resources[1], 1)
+                if starting_resources[2] then
+                    player:take_resource(starting_resources[2], 2)
+                end
+            end
         end
-
-        LOG.DEBUG("starting_resource: " .. starting_resources[1])
-
-        player:take_resource(starting_resources[1], 1)
-        player:take_resource(starting_resources[2], 2)
 
     end
 end

@@ -4,7 +4,8 @@ Convert a leaders YAML file into a Lua snippet that appends entries to
 `starting_pieces` in `Global.lua`.
 
 Usage:
-  python tools/yml_to_lua.py assets/leaders.yml -o leaders_starting_pieces.lua
+  python tools/yml_to_lua.py assets/leaders.yml -o assets/leaders_starting_pieces.lua
+  then copy this over in global.lua
 
 Options:
   --key-field FIELD   Use FIELD from each YAML entry as the Lua table key (default: 'id').
@@ -21,10 +22,12 @@ entries in `starting_pieces`.
 """
 
 import argparse
-import sys
+import copy
 import os
-import yaml
 import re
+import sys
+
+import yaml
 
 
 def norm_key_from_name(name: str) -> str:
@@ -106,9 +109,23 @@ def convert_entry_to_starting_pieces(entry):
                 sub['ships'] = val['ships']
             # if there are other numeric/boolean values that should be preserved, add here
             lp[letter] = sub
-    resources = entry.get('resources') or entry.get('resource') or []
-    if isinstance(resources, list) and resources:
-        lp['resources'] = resources
+    # resources may be a list, a single string, or absent.
+    resources = entry.get('resources')
+    if resources is None:
+        resources = entry.get('resource')
+
+    if isinstance(resources, list):
+        if resources:
+            lp['resources'] = resources
+    elif isinstance(resources, str):
+        # allow a single resource string to be treated as a one-item list
+        s = resources.strip()
+        if s != "":
+            lp['resources'] = [s]
+    # if resources is missing or empty, do not add the key (preserve nil)
+    # Ensure D is present: if D not defined but C is, copy C into D
+    if 'D' not in lp and 'C' in lp:
+        lp['D'] = copy.deepcopy(lp['C'])
     return lp
 
 
