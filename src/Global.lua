@@ -115,6 +115,56 @@ active_ambitions = {
 }
 
 zoneWaits = {}
+-- track which deck objects we've already patched with the draw-bottom menu
+draw_bottom_patched = {}
+-- Scan the action deck zone periodically and attach the "Draw bottom card" menu
+function scan_action_deck_zone()
+  local zone = getObjectFromGUID(action_deck_zone_GUID)
+  if not zone then return end
+
+  local found = {}
+  local objs = zone.getObjects()
+  if objs then
+    for _, obj in ipairs(objs) do
+      local is_deck = false
+      -- prefer the stable tag, fall back to name property/method
+      if obj.tag and obj.tag == "Deck" then
+        is_deck = true
+      elseif obj.getName and obj.getName() == "Deck" then
+        is_deck = true
+      elseif obj.name == "Deck" then
+        is_deck = true
+      end
+      if is_deck then
+        local guid = nil
+        if obj.getGUID then guid = obj.getGUID() end
+        if not guid and obj.guid then guid = obj.guid end
+        if guid then
+          found[guid] = true
+          if not draw_bottom_patched[guid] then
+            pcall(function()
+              obj.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom)
+            end)
+            draw_bottom_patched[guid] = true
+            if debug then broadcastToAll("Attached Draw-bottom to deck " .. guid) end
+          end
+        end
+      end
+    end
+  end
+
+  -- Remove tracking for decks that have left or been destroyed
+  for guid, _ in pairs(draw_bottom_patched) do
+    if not found[guid] then
+      draw_bottom_patched[guid] = nil
+    end
+  end
+end
+
+function schedule_scan()
+  scan_action_deck_zone()
+  Wait.time(schedule_scan, 2)
+end
 ----------------------------------------------------
 AmbitionMarkers = require("src/AmbitionMarkers")
 local ActionCards = require("src/ActionCards")
@@ -237,6 +287,29 @@ function onPlayerAction(player, action, targets)
             obj.setState(obj.getStateId() == 1 and 2 or 1)
         end
     end
+end
+
+function onObjectEnterScriptingZone(zone, object)
+  if not zone or not object then return end
+
+  -- Only care about decks entering the action deck zone
+  if zone.getGUID and zone.getGUID() == action_deck_zone_GUID then
+    local is_deck = false
+    if object.tag and object.tag == "Deck" then is_deck = true end
+    if object.getName and object.getName() == "Deck" then is_deck = true end
+    if object.name == "Deck" then is_deck = true end
+    if not is_deck then return end
+    local guid = nil
+    if object.getGUID then guid = object.getGUID() end
+    if not guid and object.guid then guid = object.guid end
+    if not guid then return end
+    if draw_bottom_patched[guid] then return end
+    pcall(function()
+      object.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom)
+    end)
+    draw_bottom_patched[guid] = true
+    if debug then broadcastToAll("Attached Draw-bottom to deck " .. guid) end
+  end
 end
 
 function onPlayerTurn(player, previous_player)
@@ -1429,6 +1502,9 @@ function onLoad(script_state)
     Supplies.addMenuToAllObjects()
     -- Recreate visible counters (numbers) on supply containers and similar
     Counters.setup()
+
+    -- start periodic scan to ensure Draw-bottom is attached to any new decks
+    schedule_scan()
 
     local reach_board = getObjectFromGUID(reach_board_GUID)
     if (reach_board.getDescription() == "in progress") then
