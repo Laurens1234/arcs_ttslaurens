@@ -135,7 +135,18 @@ function ObjectCounters.setup()
 end
 
 function ObjectCounters.add(container, button)
+    local guid = container.getGUID()
+    local existing = container.getButtons() or {}
+
     if (container.type == "Infinite") then
+        -- If buttons already exist, edit them instead of creating duplicates
+        if #existing >= 2 then
+            has_counter[guid] = true
+            container.editButton({index = 0, label = "∞"})
+            container.editButton({index = 1, label = "∞"})
+            return
+        end
+
         container.createButton({
             function_owner = self,
             click_function = "doNothing",
@@ -160,14 +171,23 @@ function ObjectCounters.add(container, button)
             font_size = button.font_size,
             font_color = button.font_color
         })
+        has_counter[guid] = true
         return
     end
 
-    has_counter[container.getGUID()] = true
+    local label = "" .. #container.getObjects()
+    if #existing >= 2 then
+        has_counter[guid] = true
+        container.editButton({index = 0, label = label})
+        container.editButton({index = 1, label = label})
+        return
+    end
+
+    has_counter[guid] = true
     container.createButton({
         function_owner = self,
         click_function = "doNothing",
-        label = "" .. #container.getObjects(),
+        label = label,
         position = Vector(button.shadow) + Vector(button.position),
         rotation = button.rotation and button.rotation or {0, 0, 0},
         width = 0,
@@ -179,7 +199,7 @@ function ObjectCounters.add(container, button)
     container.createButton({
         function_owner = self,
         click_function = "doNothing",
-        label = "" .. #container.getObjects(),
+        label = label,
         position = button.position,
         rotation = button.rotation and button.rotation or {0, 0, 0},
         width = 0,
