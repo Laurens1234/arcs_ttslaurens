@@ -881,6 +881,11 @@ function BaseGame.destroy_unused_miniature_supplies()
         if ship_bag then
             ship_bag.destroy()
         end
+        -- Also destroy miniature agent supplies if present
+        local agent_bag = getObjectFromGUID(player_pieces_guids[color]["mini_agents"])
+        if agent_bag then
+            agent_bag.destroy()
+        end
     end
     local mini_imperial_ships_bag = getObjectFromGUID(Global.getVar("mini_imperial_ships_GUID"))
     if mini_imperial_ships_bag then
