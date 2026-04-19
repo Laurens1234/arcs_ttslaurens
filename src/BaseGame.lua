@@ -8,6 +8,7 @@ local BaseGame = {
         },
         leaders = "2d243a",
         leaders_expansion = "768d3d",
+        laurens_custom_leaders = "4fcf71",
         lore = "0d8ede",
         lore_expansion = "3441e5",
         -- faceup_discard_cards = "a8e929",
@@ -566,8 +567,65 @@ function BaseGame.dealLeaders(player_count)
         lore_deck.putObject(mte_lore)
     end
 
+    -- Optionally remove the base and expansion leader objects entirely.
+    -- Capture their position/rotation first so we can move the custom deck
+    -- to that location even after deletion.
+    local base_leaders_pos, base_leaders_rot
+    if (Global.getVar("dont_use_base_and_pack_leaders")) then
+        local base_leaders_obj = getObjectFromGUID(BaseGame.components.leaders)
+        if (base_leaders_obj) then
+            base_leaders_pos = base_leaders_obj.getPosition()
+            base_leaders_rot = base_leaders_obj.getRotation()
+            destroyObject(base_leaders_obj)
+            broadcastToAll("Removed base leaders from the table")
+        end
+        local expansion_leaders_obj = getObjectFromGUID(BaseGame.components.leaders_expansion)
+        if (expansion_leaders_obj) then
+            destroyObject(expansion_leaders_obj)
+            broadcastToAll("Removed expansion leaders from the table")
+        end
+    end
+
+    -- Optionally include Laurens' custom leader deck
+    if (Global.getVar("with_laurens_custom_leader")) then
+        local laurens_deck = getObjectFromGUID(BaseGame.components.laurens_custom_leaders)
+        if (laurens_deck) then
+            if Global.getVar("dont_use_base_and_pack_leaders") then
+                -- Move Laurens deck to the recorded base leaders position if available
+                if base_leaders_pos then
+                    laurens_deck.setPosition({base_leaders_pos.x, base_leaders_pos.y, base_leaders_pos.z})
+                    if base_leaders_rot then laurens_deck.setRotation(base_leaders_rot) end
+                else
+                    -- Fallback: move to the existing fate deck position
+                    if leader_deck and leader_deck.getPosition then
+                        local p = leader_deck.getPosition()
+                        laurens_deck.setPosition({p.x, p.y, p.z})
+                    end
+                end
+                leader_deck = laurens_deck
+                broadcastToAll("Using Laurens' custom leader deck")
+
+            else
+                leader_deck.putObject(laurens_deck)
+                broadcastToAll("Including Laurens' custom leader deck")
+            end
+        end
+    end
+
     leader_deck.randomize()
     lore_deck.randomize()
+
+    -- If Laurens' custom deck exists but is NOT selected for inclusion,
+    -- move it to the left of the starting leader deck so it's visible but not used.
+    local laurens_obj = getObjectFromGUID(BaseGame.components.laurens_custom_leaders)
+    if laurens_obj and not Global.getVar("with_laurens_custom_leader") then
+        if leader_deck and leader_deck.getPosition then
+            local p = leader_deck.getPosition()
+            -- place to the left by one spacing unit (matches deal spacing)
+            local left_x = p.x - 3.2
+            laurens_obj.setPosition({left_x, p.y, p.z})
+        end
+    end
 
     local leader_pos = {
         x = 25,
@@ -580,16 +638,38 @@ function BaseGame.dealLeaders(player_count)
         z = -2.5
     }
 
-    for i = 1, player_count + 1 do
+    local leader_qty = Global.getVar("leader_draft_count") or (player_count + 1)
+    local lore_qty = Global.getVar("lore_draft_count") or (player_count + 1)
+
+    -- Place leaders in rows of 5. If >5, wrap to a row above (increasing z).
+    local cols = 5
+    local spacing = 3.2
+    -- shift all cards one column to the right (so card 1 appears where card 2 was)
+    local start_x_offset = spacing
+    -- increase vertical separation between rows
+    local row_spacing_leaders = 5.5
+    local row_spacing_lore = 3.3
+    for i = 1, leader_qty do
+        local idx = i - 1
+        local row = math.floor(idx / cols)
+        local col = idx % cols
+        local pos = {leader_pos.x + (col * spacing) + start_x_offset, leader_pos.y, leader_pos.z + (row * row_spacing_leaders)}
         leader_deck.takeObject({
             flip = true,
-            position = {leader_pos.x + (i * 3.2), leader_pos.y, leader_pos.z}
+            position = pos
         })
+    end
+
+    -- Place lores in rows of 5. If >5, wrap to a row below (decreasing z).
+    for i = 1, lore_qty do
+        local idx = i - 1
+        local row = math.floor(idx / cols)
+        local col = idx % cols
+        local pos = {lore_pos.x + (col * spacing) + start_x_offset, lore_pos.y, lore_pos.z - (row * row_spacing_lore)}
         lore_deck.takeObject({
             flip = true,
-            position = {lore_pos.x + (i * 3.2), lore_pos.y, lore_pos.z}
+            position = pos
         })
-
     end
 end
 
@@ -634,8 +714,24 @@ function BaseGame.setupPlayers(ordered_players, setup_card)
             player_pieces_guids[player_color]["cities"][2])
 
         LOG.DEBUG("get starting pieces")
-        local leader = player_leaders[player_number]
-        local pieces = Global.getVar("starting_pieces")[leader]
+        local leader_ref = player_leaders[player_number]
+        local leader_name = leader_ref
+        -- If the stored value is a GUID for the leader object, resolve its name
+        if type(leader_ref) == "string" then
+            local leader_obj = getObjectFromGUID(leader_ref)
+            if leader_obj and leader_obj.getName then
+                leader_name = leader_obj.getName()
+            end
+        end
+        local starting_pieces = Global.getVar("starting_pieces")
+        local pieces = nil
+        if starting_pieces then
+            pieces = starting_pieces[leader_name] or starting_pieces[leader_ref] or starting_pieces["Default"]
+        end
+        if not pieces then
+            LOG.DEBUG("No starting_pieces entry for leader: " .. tostring(leader_name) .. " (or GUID: " .. tostring(leader_ref) .. "). Using Default if available.")
+            pieces = starting_pieces and starting_pieces["Default"] or {}
+        end
 
         LOG.DEBUG("iterate through setup card's ABCs")
         for starting_letter, cluster_system in pairs(ABC) do
