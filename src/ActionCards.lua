@@ -225,12 +225,22 @@ function ActionCards.to_face_up_discard(card)
         face_up_discard_action_deck_GUID)
 
     if fud_discard_action_deck then
-        for _, v in ipairs(fud_discard_action_deck.getObjects()) do
-            if (v.description == card_name) then
-                discarded_card = fud_discard_action_deck.takeObject({
-                    guid = v.guid
-                })
-                break
+        local fud_objs = nil
+        pcall(function() fud_objs = fud_discard_action_deck.getObjects() end)
+        if fud_objs then
+            for _, v in ipairs(fud_objs) do
+                if (v.description == card_name) then
+                    discarded_card = pcall(function()
+                        return fud_discard_action_deck.takeObject({
+                            guid = v.guid
+                        })
+                    end)
+                    -- if pcall returned (true, obj) unpack
+                    if type(discarded_card) == "table" and discarded_card[1] ~= nil then
+                        discarded_card = discarded_card[1]
+                    end
+                    break
+                end
             end
         end
     else
@@ -257,14 +267,15 @@ end
 function ActionCards.clear_face_up_discard()
     LOG.DEBUG("ActionCards.clear_face_up_discard()")
     local fud_discard_action_deck = getObjectFromGUID(face_up_discard_action_deck_GUID)
-    for ct, obj in ipairs(ActionCards.get_face_up_discard_cards()) do
-        obj.setLock(false)
-        obj.removeTag(fud_tag)
+    local fud_cards = ActionCards.get_face_up_discard_cards() or {}
+    for ct, obj in ipairs(fud_cards) do
+        pcall(function() obj.setLock(false) end)
+        pcall(function() obj.removeTag(fud_tag) end)
         if fud_discard_action_deck then
             pcall(function() fud_discard_action_deck.putObject(obj) end)
         else
             -- fallback: move to face-down discard to avoid losing the card
-            ActionCards.to_face_down_discard(obj)
+            pcall(function() ActionCards.to_face_down_discard(obj) end)
         end
     end
 end

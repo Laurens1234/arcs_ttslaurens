@@ -96,7 +96,7 @@ local function initializeCounters()
             font_size = 365,
             font_color = {1, 1, 1}
         }, {
-            container_GUID = Global.getVar("imperial_ships_GUID"),
+            container_GUID = Global.getVar("imperial_ships_GUID") or imperial_ships_GUID,
             position = {0.5, 0.06, 0.03},
             shadow = {0.03, 0, 0.02},
             scale = {1, 1, 1},
@@ -110,14 +110,14 @@ local function initializeCounters()
             font_size = 365,
             font_color = {0.7, 0.9, 0.7}
         }, {
-            container_GUID = Global.getVar("free_cities_GUID"),
+            container_GUID = Global.getVar("free_cities_GUID") or free_cities_GUID,
             position = {0.5, 0.06, 0.03},
             shadow = {0.03, 0.06, 0.02},
             scale = {1, 1, 1},
             font_size = 365,
             font_color = {0.7, 0.7, 0.7}
         }, {
-            container_GUID = Global.getVar("free_starports_GUID"),
+            container_GUID = Global.getVar("free_starports_GUID") or free_starports_GUID,
             position = {0.5, 0.06, 0.03},
             shadow = {0.03, 0.06, 0.02},
             scale = {1, 1, 1},
@@ -171,6 +171,27 @@ function ObjectCounters.setup()
                                 end
                             end
                         end
+                            -- If still not found, try to find a container that holds Imperial Ship objects
+                            if not o then
+                                local all = getAllObjects()
+                                for _, cand in ipairs(all) do
+                                    local ok_get, inner = pcall(function() return cand.getObjects and cand.getObjects() end)
+                                    if ok_get and inner then
+                                        for _, item in ipairs(inner) do
+                                            local iname = nil
+                                            pcall(function()
+                                                if type(item) == "table" then iname = item.name end
+                                                if type(item) == "userdata" and item.getName then iname = item.getName() end
+                                            end)
+                                            if iname and string.find(iname, "Imperial Ship") then
+                                                o = cand
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if o then break end
+                                end
+                            end
                         if o then
                             -- slight delay to allow the object to fully initialize
                             Wait.time(function() ObjectCounters.add(o, counter) end, 0.1)
@@ -186,6 +207,23 @@ function ObjectCounters.setup()
                                 end
                             end
                         end
+                            -- Also treat presence of a container holding Imperial Ship items as success
+                            local all = getAllObjects()
+                            for _, cand in ipairs(all) do
+                                local ok_get, inner = pcall(function() return cand.getObjects and cand.getObjects() end)
+                                if ok_get and inner then
+                                    for _, item in ipairs(inner) do
+                                        local iname = nil
+                                        pcall(function()
+                                            if type(item) == "table" then iname = item.name end
+                                            if type(item) == "userdata" and item.getName then iname = item.getName() end
+                                        end)
+                                        if iname and string.find(iname, "Imperial Ship") then
+                                            return true
+                                        end
+                                    end
+                                end
+                            end
                         return false
                     end)
                 end)
