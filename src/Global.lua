@@ -1625,22 +1625,109 @@ function onLoad(script_state)
         end
     end
 
-    local action_deck = ActionCards.get_action_deck()
-    action_deck.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom)
+    local ok_block, block_err = pcall(function()
+      local action_deck = nil
+      if ActionCards and type(ActionCards.get_action_deck) == "function" then
+        action_deck = ActionCards.get_action_deck()
+      end
+      if action_deck and action_deck.addContextMenuItem and ActionCards and type(ActionCards.draw_bottom) == "function" then
+        pcall(function() action_deck.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom) end)
+      else
+        if debug and LOG and LOG.WARNING then LOG.WARNING("onLoad: action_deck missing, scheduling Draw-bottom attachment") end
+        pcall(function()
+          Wait.condition(function()
+            local d = nil
+            if ActionCards and type(ActionCards.get_action_deck) == "function" then
+              d = ActionCards.get_action_deck()
+            end
+            if d and d.addContextMenuItem and ActionCards and type(ActionCards.draw_bottom) == "function" then
+              pcall(function() d.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom) end)
+              if debug and LOG and LOG.INFO then pcall(function() LOG.INFO("onLoad: attached Draw-bottom to action deck after wait") end) end
+            end
+          end, function()
+            if ActionCards and type(ActionCards.get_action_deck) == "function" then
+              return (ActionCards.get_action_deck() ~= nil)
+            end
+            return false
+          end)
+        end)
+      end
 
-    for _, obj in pairs(getObjectsWithTag("Noninteractable")) do
-        obj.locked = true
-        obj.interactable = false
-    end
+      for _, obj in pairs(getObjectsWithTag("Noninteractable")) do
+        if obj then
+          pcall(function() obj.locked = true end)
+          pcall(function() obj.interactable = false end)
+        end
+      end
 
-    if (not debug) then
-        local face_up_discard_action_deck = getObjectFromGUID(
-            face_up_discard_action_deck_GUID)
-        face_up_discard_action_deck.setInvisibleTo({
-            "Red", "White", "Yellow", "Teal", "Black", "Grey"
-        })
-        face_up_discard_action_deck.interactable = false
-        face_up_discard_action_deck.locked = false -- set this to false otherwise it breaks
+      local function configure_faceup_deck(obj)
+        if not obj then return false end
+
+        local function apply_config(o)
+          pcall(function()
+            if o.setInvisibleTo then o.setInvisibleTo({"Red", "White", "Yellow", "Teal", "Black", "Grey"}) end
+            if o.interactable ~= nil then o.interactable = false end
+            if o.locked ~= nil then o.locked = false end
+          end)
+          if LOG and LOG.INFO then pcall(function() LOG.INFO("Configured face-up discard deck invisibility for " .. tostring(o.getGUID and o.getGUID() or "unknown")) end) end
+        end
+
+        -- Try to apply immediately
+        apply_config(obj)
+
+        -- If the API isn't ready yet (e.g. object is still loading), retry once on the next frame
+        if obj.setInvisibleTo == nil then
+          Wait.frames(function()
+            local guid = nil
+            pcall(function() guid = obj.getGUID and obj.getGUID() or obj.guid end)
+            if guid then
+              local o = getObjectFromGUID(guid)
+              if o then apply_config(o) end
+            end
+          end, 1)
+        end
+
+        return true
+      end
+
+      if LOG and LOG.INFO then pcall(function() LOG.INFO("onLoad: face_up_discard_action_deck_GUID=" .. tostring(face_up_discard_action_deck_GUID)) end) end
+      local face_up_deck = getObjectFromGUID(face_up_discard_action_deck_GUID)
+      if not face_up_deck and LOG and LOG.INFO then
+        pcall(function()
+          LOG.INFO("onLoad: face_up discard deck not found by GUID, scanning objects...")
+          local objs = getAllObjects()
+          LOG.INFO("onLoad: total objects=" .. tostring(#objs))
+          for i, o in ipairs(objs) do
+            local ok_guid, og = pcall(function() return o.getGUID and o.getGUID() or o.guid end)
+            local ok_name, on = pcall(function() return (o.getName and o.getName()) or o.getNickname and o.getNickname() or o.nickname end)
+            if ok_guid and og == face_up_discard_action_deck_GUID then
+              LOG.INFO("onLoad: found matching guid in getAllObjects at index " .. tostring(i) .. " name=" .. tostring(on))
+            end
+            if ok_name and on and (string.find(on, "Discard") or string.find(on, "Action")) then
+              LOG.INFO("onLoad: potential match index " .. tostring(i) .. " name=" .. tostring(on) .. " guid=" .. tostring(og))
+            end
+          end
+        end)
+      end
+      if not configure_faceup_deck(face_up_deck) then
+        -- schedule a retry when the object becomes available
+        pcall(function()
+          Wait.condition(function()
+            local o = getObjectFromGUID(face_up_discard_action_deck_GUID)
+            if o then configure_faceup_deck(o) end
+          end, function()
+            return getObjectFromGUID(face_up_discard_action_deck_GUID) ~= nil
+          end)
+        end)
+        if LOG and LOG.WARNING then LOG.WARNING("face_up_discard_action_deck missing at onLoad, scheduled configuration retry") end
+      end
+    end)
+    if not ok_block then
+      if LOG and LOG.ERROR then
+        LOG.ERROR("onLoad initialization block error: " .. tostring(block_err) .. "\n" .. (debug and (debug.traceback and debug.traceback() or "no traceback") or ""))
+      else
+        print("onLoad initialization block error: " .. tostring(block_err))
+      end
     end
 
     -- Initialize turn system

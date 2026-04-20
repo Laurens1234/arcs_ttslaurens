@@ -65,7 +65,13 @@ local face_up_discard_guids = {
 
 function ActionCards.get_action_deck()
     local action_deck_zone = getObjectFromGUID(action_deck_zone_GUID)
-    local action_deck_zone_objects = action_deck_zone.getObjects()
+    if not action_deck_zone then
+        if debug and LOG and LOG.WARNING then LOG.WARNING("ActionCards.get_action_deck: action_deck_zone missing (setup not run), falling back to action_deck_GUID") end
+        return getObjectFromGUID(action_deck_GUID)
+    end
+
+    local action_deck_zone_objects = nil
+    pcall(function() action_deck_zone_objects = action_deck_zone.getObjects() end)
 
     if (action_deck_zone_objects) then
         for _, v in ipairs(action_deck_zone_objects) do
@@ -218,13 +224,17 @@ function ActionCards.to_face_up_discard(card)
     local fud_discard_action_deck = getObjectFromGUID(
         face_up_discard_action_deck_GUID)
 
-    for _, v in ipairs(fud_discard_action_deck.getObjects()) do
-        if (v.description == card_name) then
-            discarded_card = fud_discard_action_deck.takeObject({
-                guid = v.guid
-            })
-            break
+    if fud_discard_action_deck then
+        for _, v in ipairs(fud_discard_action_deck.getObjects()) do
+            if (v.description == card_name) then
+                discarded_card = fud_discard_action_deck.takeObject({
+                    guid = v.guid
+                })
+                break
+            end
         end
+    else
+        LOG.WARNING("ActionCards.to_face_up_discard: face-up discard deck missing, falling back to face-down discard")
     end
 
     if (discarded_card) then
@@ -246,13 +256,16 @@ end
 
 function ActionCards.clear_face_up_discard()
     LOG.DEBUG("ActionCards.clear_face_up_discard()")
-    local fud_discard_action_deck = getObjectFromGUID(
-        face_up_discard_action_deck_GUID)
-
+    local fud_discard_action_deck = getObjectFromGUID(face_up_discard_action_deck_GUID)
     for ct, obj in ipairs(ActionCards.get_face_up_discard_cards()) do
         obj.setLock(false)
         obj.removeTag(fud_tag)
-        fud_discard_action_deck.putObject(obj)
+        if fud_discard_action_deck then
+            pcall(function() fud_discard_action_deck.putObject(obj) end)
+        else
+            -- fallback: move to face-down discard to avoid losing the card
+            ActionCards.to_face_down_discard(obj)
+        end
     end
 end
 

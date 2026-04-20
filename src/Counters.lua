@@ -130,23 +130,117 @@ end
 function ObjectCounters.setup()
     the_counters = initializeCounters()
     for _, counter in pairs(the_counters) do
-        ObjectCounters.add(getObjectFromGUID(counter.container_GUID), counter)
+        local obj = nil
+        if counter and counter.container_GUID then
+            obj = getObjectFromGUID(counter.container_GUID)
+        end
+        if not obj then
+            if debug and LOG and LOG.WARNING then
+                LOG.WARNING("ObjectCounters.setup: missing object for GUID " .. tostring(counter and counter.container_GUID) .. ", scheduling retry")
+            end
+            -- Schedule a retry: wait until the object becomes available, then attach the counter
+            local missing_guid = counter and counter.container_GUID
+            if missing_guid then
+                pcall(function()
+                    -- attempt to match by GUID or by expected nickname (fallback)
+                    local expected_name = nil
+                    pcall(function()
+                        if player_pieces_guids then
+                            for color, tbl in pairs(player_pieces_guids) do
+                                for kind, guidval in pairs(tbl) do
+                                    if guidval == missing_guid then
+                                        if kind == "ships" then expected_name = color .. " Ship Supply"
+                                        elseif kind == "agents" then expected_name = color .. " Agent Supply"
+                                        elseif kind == "starports" then expected_name = color .. " Starport Supply"
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end)
+
+                    Wait.condition(function()
+                        local o = getObjectFromGUID(missing_guid)
+                        if not o and expected_name then
+                            local objs = getAllObjects()
+                            for _, obj in ipairs(objs) do
+                                local ok, name = pcall(function() return obj.getName and obj.getName() end)
+                                if ok and name == expected_name then
+                                    o = obj
+                                    break
+                                end
+                            end
+                        end
+                        if o then
+                            -- slight delay to allow the object to fully initialize
+                            Wait.time(function() ObjectCounters.add(o, counter) end, 0.1)
+                        end
+                    end, function()
+                        if getObjectFromGUID(missing_guid) ~= nil then return true end
+                        if expected_name then
+                            local objs = getAllObjects()
+                            for _, obj in ipairs(objs) do
+                                local ok, name = pcall(function() return obj.getName and obj.getName() end)
+                                if ok and name == expected_name then
+                                    return true
+                                end
+                            end
+                        end
+                        return false
+                    end)
+                end)
+            end
+        else
+            if debug and LOG and LOG.INFO then
+                local ok, _type = pcall(function() return obj.type end)
+                local ok2, _name = pcall(function() return obj.getName and obj.getName() or obj.name end)
+                LOG.INFO("ObjectCounters.setup: found object for GUID " .. tostring(counter and counter.container_GUID) .. " type=" .. tostring(_type) .. " name=" .. tostring(_name))
+            end
+            -- slight delay to ensure object is fully ready before attaching buttons
+            Wait.time(function() ObjectCounters.add(obj, counter) end, 0.1)
+        end
+    end
+    -- Final pass: ensure counters' labels are correct for any containers that exist
+    for _, counter in pairs(the_counters or {}) do
+        local existing_obj = counter and counter.container_GUID and getObjectFromGUID(counter.container_GUID)
+        if existing_obj then
+            pcall(function() ObjectCounters.update(existing_obj) end)
+        end
     end
 end
 
 function ObjectCounters.add(container, button)
-    local guid = container.getGUID()
-    local existing = container.getButtons() or {}
+    if not container then
+        if debug and LOG and LOG.WARNING then
+            LOG.WARNING("ObjectCounters.add: called with nil container")
+        end
+        return
+    end
+    local guid = nil
+    pcall(function() guid = container.getGUID() end)
+    local existing = {}
+    local ok_buttons = pcall(function() existing = container.getButtons() or {} end)
+    if not ok_buttons then
+        if debug and LOG and LOG.WARNING then LOG.WARNING("ObjectCounters.add: failed to read buttons for " .. tostring(guid)) end
+        return
+    end
+    if debug and LOG and LOG.INFO then
+        pcall(function()
+            LOG.INFO("ObjectCounters.add: target GUID=" .. tostring(guid) .. " type=" .. tostring(container.type) .. " existing_buttons=" .. tostring(#existing) .. " button_spec=" .. tostring(button and button.container_GUID))
+        end)
+    end
 
     if (container.type == "Infinite") then
         -- If buttons already exist, edit them instead of creating duplicates
         if #existing >= 2 then
             has_counter[guid] = true
-            container.editButton({index = 0, label = "∞"})
-            container.editButton({index = 1, label = "∞"})
+            pcall(function() container.editButton({index = 0, label = "∞"}) end)
+            pcall(function() container.editButton({index = 1, label = "∞"}) end)
+            if debug and LOG and LOG.INFO then pcall(function() LOG.INFO("ObjectCounters.add: edited Infinite buttons for "..tostring(guid)) end) end
             return
         end
 
+        if debug and LOG and LOG.INFO then pcall(function() LOG.INFO("ObjectCounters.add: creating Infinite buttons for "..tostring(guid)) end) end
         container.createButton({
             function_owner = self,
             click_function = "doNothing",
@@ -175,15 +269,24 @@ function ObjectCounters.add(container, button)
         return
     end
 
-    local label = "" .. #container.getObjects()
+    local objs = nil
+    local ok_objs = pcall(function() objs = container.getObjects() end)
+    if not ok_objs or not objs then
+        if debug and LOG and LOG.WARNING then LOG.WARNING("ObjectCounters.add: failed to read objects for " .. tostring(guid)) end
+        return
+    end
+    if debug and LOG and LOG.INFO then pcall(function() LOG.INFO("ObjectCounters.add: objects_count="..tostring(#objs).." for "..tostring(guid)) end) end
+    local label = "" .. #objs
     if #existing >= 2 then
         has_counter[guid] = true
         container.editButton({index = 0, label = label})
         container.editButton({index = 1, label = label})
+        if debug and LOG and LOG.INFO then pcall(function() LOG.INFO("ObjectCounters.add: edited buttons for "..tostring(guid).." label="..tostring(label)) end) end
         return
     end
 
     has_counter[guid] = true
+    if debug and LOG and LOG.INFO then pcall(function() LOG.INFO("ObjectCounters.add: creating buttons for "..tostring(guid).." label="..tostring(label)) end) end
     container.createButton({
         function_owner = self,
         click_function = "doNothing",
