@@ -104,6 +104,15 @@ function BaseGame.leaders_visibility(show, with_expansion)
             is_visible = show
         })
     end
+    -- Also apply visibility to Laurens' custom leader deck (if present)
+    local laurens = getObjectFromGUID(BaseGame.components.laurens_custom_leaders)
+    if (laurens) then
+        laurens.setInvisibleTo(visibility)
+        Global.call("move_and_lock_object", {
+            obj = laurens,
+            is_visible = show
+        })
+    end
 end
 
 function BaseGame.lore_visibility(show, with_expansion)

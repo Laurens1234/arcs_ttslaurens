@@ -1,6 +1,6 @@
 local LOG = {
     -- 1: TRACE, 2: DEBUG, 3: INFO, 4: WARNING (always shown), 5: ERROR (always shown)
-    logLevel = 2
+    logLevel = 4
 }
 
 function LOG.TRACE(message)

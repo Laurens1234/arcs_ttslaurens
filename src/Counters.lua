@@ -272,7 +272,18 @@ function ObjectCounters.add(container, button)
     local objs = nil
     local ok_objs = pcall(function() objs = container.getObjects() end)
     if not ok_objs or not objs then
-        if debug and LOG and LOG.WARNING then LOG.WARNING("ObjectCounters.add: failed to read objects for " .. tostring(guid)) end
+        if debug and LOG and LOG.WARNING then LOG.WARNING("ObjectCounters.add: failed to read objects for " .. tostring(guid) .. ", scheduling retry") end
+        -- Try again shortly: object may not be fully initialized after reload/rewind
+        Wait.time(function()
+            pcall(function()
+                -- Only retry if the container still exists
+                local g = nil
+                pcall(function() g = container.getGUID() end)
+                if g and getObjectFromGUID(g) then
+                    ObjectCounters.add(getObjectFromGUID(g), button)
+                end
+            end)
+        end, 0.5)
         return
     end
     if debug and LOG and LOG.INFO then pcall(function() LOG.INFO("ObjectCounters.add: objects_count="..tostring(#objs).." for "..tostring(guid)) end) end
