@@ -283,28 +283,10 @@ function onObjectDrop(player_color, object)
 
     -- ambitions
     if (object_name == "Ambition") then
-      -- Resolve object GUID now and re-fetch when the timer runs to avoid
-      -- using a stale/invalid object reference in the delayed callback.
-      local obj_guid = (object and object.getGUID and object.getGUID()) or object.guid
-      Wait.time(function()
-        local obj = nil
-        if obj_guid then
-          obj = getObjectFromGUID(obj_guid)
-        end
-        if not obj then
-          -- fallback: maybe the original object reference is still valid
-          obj = object
-        end
-        if not obj then
-          -- final fallback: use requested GUID c9e0ee per user
-          obj = getObjectFromGUID("c9e0ee")
-        end
-        if obj and obj.getPosition then
-          AmbitionMarkers.get_ambition_info(obj)
-        else
-          if debug then broadcastToAll("Ambition callback: object missing for guid " .. tostring(obj_guid)) end
-        end
-      end, 0.5)
+        -- commenting until we can get the ambition markers working
+        -- Wait.time(function()
+        --     AmbitionMarkers.get_ambition_info(object)
+        -- end, 0.5)
     end
 end
 
