@@ -77,127 +77,30 @@ local ambitions = {
 local last_declared_marker = nil
 
 function ambitionMarkers:get_ambition_info(object)
-    -- Guard against missing object or reach board (load-order issues)
-    if not object or not object.getPosition then
-        -- Try resolving the ambition marker by any known ambition_marker_GUIDs
-        local found = nil
-        if ambition_marker_GUIDs then
-            for i = 1, #ambition_marker_GUIDs do
-                local g = ambition_marker_GUIDs[i]
-                local o = getObjectFromGUID(g)
-                if o and o.getPosition then
-                    found = o
-                    break
-                end
-            end
-        end
-        if not found then
-            Log.WARNING("get_ambition_info called with invalid object and no ambition marker fallbacks available")
-            return
-        end
-        object = found
-    end
-
-    -- safe guid for retry tracking and indexing
-    local obj_guid = (object.getGUID and object.getGUID()) or object.guid or "unknown"
-
     local reach_map = getObjectFromGUID(reach_board_GUID)
-    if not reach_map then
-        -- Wait and retry a few times in case the reach board hasn't loaded yet
-        ambitionMarkers._retry_counts = ambitionMarkers._retry_counts or {}
-        local count = ambitionMarkers._retry_counts[obj_guid] or 0
-        if count < 6 then
-            ambitionMarkers._retry_counts[obj_guid] = count + 1
-            Wait.time(function()
-                ambitionMarkers.get_ambition_info(object)
-            end, 0.5)
-            return
-        else
-            Log.WARNING("reach_board not found; aborting ambition info for " .. tostring(obj_guid))
-            return
-        end
+    local ambition_pos_z = (reach_map.positionToLocal(object.getPosition()).z)
+    local ambition_number = math.floor((ambition_pos_z + 1.83) / 0.39)
+
+    local global_ambitions = Global.getVar("active_ambitions")
+
+    -- Initialize global_ambitions if it's nil
+    if global_ambitions == nil then
+        global_ambitions = {}
+        Global.setVar("active_ambitions", global_ambitions)
     end
 
-    -- ensure object has a valid position
-    local obj_pos = object.getPosition()
-    if not obj_pos then
-        ambitionMarkers._retry_counts = ambitionMarkers._retry_counts or {}
-        local count = ambitionMarkers._retry_counts[obj_guid] or 0
-        if count < 6 then
-            ambitionMarkers._retry_counts[obj_guid] = count + 1
-            Wait.time(function()
-                ambitionMarkers.get_ambition_info(object)
-            end, 0.5)
-            return
-        else
-            Log.WARNING("object has no position; aborting ambition info for " .. tostring(obj_guid))
-            return
-        end
-    end
-
-    local local_pos = reach_map.positionToLocal(obj_pos)
-    if not local_pos then
-        ambitionMarkers._retry_counts = ambitionMarkers._retry_counts or {}
-        local count = ambitionMarkers._retry_counts[obj_guid] or 0
-        if count < 6 then
-            ambitionMarkers._retry_counts[obj_guid] = count + 1
-            Wait.time(function()
-                ambitionMarkers.get_ambition_info(object)
-            end, 0.5)
-            return
-        else
-            Log.WARNING("positionToLocal returned nil; aborting for " .. tostring(obj_guid))
-            return
-        end
-    end
-
-    -- Instead of computing only for the moved object, refresh all markers
-    ambitionMarkers.refresh_all_ambitions()
-end
-
-
--- Scan all ambition markers and update the global ambitions table
-function ambitionMarkers:refresh_all_ambitions()
-    local reach_map = getObjectFromGUID(reach_board_GUID)
-    if not reach_map then
-        -- retry shortly if reach board missing
-        Wait.time(function()
-            ambitionMarkers.refresh_all_ambitions()
-        end, 0.5)
-        return
-    end
-
-    local global_ambitions = {}
-    for i = 1, (ambition_marker_GUIDs and #ambition_marker_GUIDs or 0) do
-        local guid = ambition_marker_GUIDs[i]
-        local obj = getObjectFromGUID(guid)
-        if obj and obj.getPosition then
-            local pos = obj.getPosition()
-            local local_pos = reach_map.positionToLocal(pos)
-            if local_pos then
-                local ambition_pos_z = local_pos.z
-                local ambition_number = math.floor((ambition_pos_z + 1.83) / 0.39)
-                if (ambition_number == 1) then
-                    global_ambitions[guid] = ""
-                elseif (ambition_number == 2) then
-                    global_ambitions[guid] = "Tycoon"
-                elseif (ambition_number == 3) then
-                    global_ambitions[guid] = "Tyrant"
-                elseif (ambition_number == 4) then
-                    global_ambitions[guid] = "Warlord"
-                elseif (ambition_number == 5) then
-                    global_ambitions[guid] = "Keeper"
-                elseif (ambition_number == 6) then
-                    global_ambitions[guid] = "Empath"
-                else
-                    global_ambitions[guid] = ""
-                end
-            else
-                global_ambitions[guid] = ""
-            end
-        else
-            global_ambitions[guid] = ""
-        end
+    if (ambition_number == 1) then -- -1.07 reset
+        global_ambitions[object.guid] = ""
+    elseif (ambition_number == 2) then -- -0.71 tycoon
+        global_ambitions[object.guid] = "Tycoon"
+    elseif (ambition_number == 3) then -- -0.33 tyrant
+        global_ambitions[object.guid] = "Tyrant"
+    elseif (ambition_number == 4) then -- 0.05 warlord
+        global_ambitions[object.guid] = "Warlord"
+    elseif (ambition_number == 5) then -- 0.43 keeper
+        global_ambitions[object.guid] = "Keeper"
+    elseif (ambition_number == 6) then -- 0.84 empath
+        global_ambitions[object.guid] = "Empath"
     end
 
     Global.setVar("active_ambitions", global_ambitions)
