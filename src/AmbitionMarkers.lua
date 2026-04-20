@@ -406,7 +406,7 @@ function declare_ambition(obj, player_color)
 
     last_declared_marker = high_marker
 
-    if ((this_ambition.name == "Keeper" or this_ambition.name == "Empath") and
+    if this_ambition and ((this_ambition.name == "Keeper" or this_ambition.name == "Empath") and
         ArcsPlayer.has_secret_order(player_color)) then
         broadcastToAll(player_color .. " has SECRET ORDER")
         return
