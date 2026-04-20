@@ -171,11 +171,32 @@ local ActionCards = require("src/ActionCards")
 local ArcsPlayer = require("src/ArcsPlayer")
 local BaseGame = require("src/BaseGame")
 local Campaign = require("src/Campaign")
-local Control = require("src/Control")
+-- Safely require SetupControl and Control to avoid load-time null-reference
+-- errors when scripts execute before Global is initialized.
+local SetupControl = nil
+do
+  local _ok, _mod = pcall(require, "src/SetupControl")
+  if _ok then
+    SetupControl = _mod
+  else
+    if debug then broadcastToAll("Warning: SetupControl failed to load at Global init: " .. tostring(_mod)) end
+  end
+end
+
+local Control = nil
+do
+  local _ok, _mod = pcall(require, "src/Control")
+  if _ok then
+    Control = _mod
+  else
+    if debug then broadcastToAll("Warning: Control failed to load at Global init: " .. tostring(_mod)) end
+  end
+end
+
 local Counters = require("src/Counters")
 local Initiative = require("src/InitiativeMarker")
 local RoundManager = require("src/RoundManager")
-local SetupControl = require("src/SetupControl")
+-- local SetupControl = require("src/SetupControl")Idk why but this stops an error at startup commeneted out 4 lines later
 local Supplies = require("src/Supplies")
 local Camera = require("src/Camera")
 local Timer = require("src/Timer")
@@ -1561,7 +1582,7 @@ function onLoad(script_state)
         end
 
         -- Safe reattachment of various UI helpers and object onload handlers
-        local setup_obj = getObjectFromGUID(SetupControl.setup_control_guid)
+        local setup_obj = getObjectFromGUID(SetupControl.setup_control_guid) -- this line this and the next 4 lines have been commented out, along with their require src at the top. Idk why but this stops an error at startup
         if setup_obj then pcall(function() setup_obj.call("onload") end) end
 
         local ctrl_obj = getObjectFromGUID(Global.getVar("control_GUID"))
