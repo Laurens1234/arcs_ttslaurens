@@ -156,7 +156,7 @@ local toggleLaurensEXCLUDE_params = {
     index = 9,
     click_function = "toggle_laurens_custom",
     function_owner = self,
-    label = " Laurens\n Custom Leaders",
+    label = " Laurens's 101\n Custom Leaders",
     tooltip = "Include Laurens' custom leader deck in setup",
     position = {-0.51, 0.5, 1.75},
     width = BUTTON_WIDTH,
@@ -171,7 +171,7 @@ local toggleLaurensINCLUDE_params = {
     index = 9,
     click_function = "toggle_laurens_custom",
     function_owner = self,
-    label = " Laurens\n Custom Leaders",
+    label = " Laurens's 101\n Custom Leaders",
     tooltip = "Exclude Laurens' custom leader deck from setup",
     position = {-0.51, 0.5, 1.75},
     width = BUTTON_WIDTH,
@@ -372,7 +372,36 @@ local customSetup_params = {
     font_color = BLACK,
     hover_color = PURPLE
 }
-
+local toggleScavengersEXCLUDE_params = {
+    index = 18,
+    click_function = "toggle_scavengers",
+    function_owner = self,
+    label = "PnP#1 Scavengers\n & Scouts Deck",
+    tooltip = "Include PnP#1 Scavengers & Scouts deck in setup intead of base court deck",
+    position = {-0.51, 0.5, 2.89},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
+    color = BLACK,
+    font_color = GOLD,
+    hover_color = GREEN
+}
+local toggleScavengersINCLUDE_params = {
+    index = 18,
+    click_function = "toggle_scavengers",
+    function_owner = self,
+    label = "PnP#1 Scavengers\n & Scouts Deck",
+    tooltip = "Exclude PnP#1 Scavengers & Scouts deck from setup",
+    position = {-0.51, 0.5, 2.89},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
+    color = GOLD,
+    font_color = BLACK,
+    hover_color = RED
+}
 SetupControl = {
     setup_control_guid = "7299d7",
     setup_control = {},
@@ -426,6 +455,8 @@ function onload()
     self.createButton(loreCountDisplay_params)
     self.createButton(loreCountInc_params)
     self.createButton(setDefault_params)
+    self.createButton(toggleScavengersEXCLUDE_params)
+
     -- Initialize numeric display labels from globals (resolve default if nil)
     local function resolved_default_count()
         local active = Global.getTable("active_players") or {}
@@ -539,6 +570,19 @@ function toggle_dont_use_base_pack()
     end
 end
 
+function toggle_scavengers()
+    local toggle = Global.getVar("use_scavengers_scouts_deck")
+
+    toggle = not toggle
+    Global.setVar("use_scavengers_scouts_deck", toggle)
+
+    if (toggle) then
+        self.editButton(toggleScavengersINCLUDE_params)
+        
+    else
+        self.editButton(toggleScavengersEXCLUDE_params)
+    end
+end
 -- Leader/Lore draft count controls
 -- Resolve a sensible default (player_count + 1) using active players or debug fallback
 local function resolved_default_count()
@@ -667,7 +711,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 17 do
+    for i = 0, 18 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)

@@ -1,5 +1,5 @@
 local LOG = {
-    logLevel = 5
+    logLevel = 4
 }
 
 function LOG.TRACE(message)

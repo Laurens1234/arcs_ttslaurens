@@ -4,11 +4,14 @@ local BaseGame = {
     components = {
         base_exclusive = {
             setup_cards = "f02e75",
-            court = "9ac2b3"
+            court = "9ac2b3",
+            scavengers_scouts_deck = "a13a10",
         },
         leaders = "2d243a",
         leaders_expansion = "768d3d",
         laurens_custom_leaders = "4fcf71",
+        pnp3_leaders = "0e4deb",
+        pnp3_leaders_extra = "ae2eb4", -- no leader cards in here, to be scripted in later not now
         lore = "0d8ede",
         lore_expansion = "3441e5",
         -- faceup_discard_cards = "a8e929",
@@ -326,7 +329,21 @@ function BaseGame.setupBaseCourt(player_count)
 
     local court_zone = getObjectFromGUID(Global.getVar("court_deck_zone_GUID"))
     local court_zone_pos = court_zone.getPosition()
-    local base_court = getObjectFromGUID(Global.getVar("base_court_deck_GUID"))
+
+    local use_scavengers = Global.getVar("use_scavengers_scouts_deck")
+    local base_court_guid
+    if use_scavengers then
+        base_court_guid = Global.getVar("scavengers_scouts_deck_GUID") or BaseGame.components.base_exclusive.scavengers_scouts_deck or Global.getVar("base_court_deck_GUID")
+    else
+        base_court_guid = Global.getVar("base_court_deck_GUID")
+    end
+
+    local base_court = getObjectFromGUID(base_court_guid)
+    if not base_court then
+        broadcastToAll("Warning: court deck object not found (using default).", {r=1,g=0.5,b=0})
+        base_court = getObjectFromGUID(Global.getVar("base_court_deck_GUID"))
+        if not base_court then return end
+    end
 
     base_court.setPosition(court_zone_pos)
     base_court.setRotation({0, 270, 180})

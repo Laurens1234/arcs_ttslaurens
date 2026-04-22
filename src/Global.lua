@@ -8,7 +8,7 @@ available_colors = {"White", "Yellow", "Red", "Teal"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = false
+debug = true
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -17,7 +17,9 @@ with_more_to_explore = false
 is_face_up_discard_active = false
 with_miniatures = false
 with_laurens_custom_leader = false
+with_pnp3_leaders = false
 dont_use_base_and_pack_leaders = false
+use_scavengers_scouts_deck = false
 is_auto_end_round_enabled = false -- toggle end round
 turn_count = 0
 leader_draft_count = nil
