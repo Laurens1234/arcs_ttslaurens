@@ -1,4 +1,4 @@
-local authors = "Quinnsicle, Scyth02, McChew, fallspectrum"
+local authors = "Quinnsicle, Scyth02, McChew, fallspectrum, Laurens"
 local version = "1.0"
 
 require("src/GUIDs")
@@ -12,8 +12,8 @@ debug = false
 debug_player_count = 2
 ----------------------------------------------------
 
-with_more_to_explore = false
 with_leaders = false
+with_more_to_explore = false
 is_face_up_discard_active = false
 with_miniatures = false
 with_laurens_custom_leader = false
