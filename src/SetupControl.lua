@@ -32,6 +32,7 @@ local optionsText_params = {
     font_color = GOLD,
 }
 
+
 local toggleLeadersWITHOUT_params = {
     index = 1,
     click_function = "toggle_leaders",
@@ -156,8 +157,8 @@ local toggleLaurensEXCLUDE_params = {
     index = 9,
     click_function = "toggle_laurens_custom",
     function_owner = self,
-    label = " Laurens's 101\n Custom Leaders",
-    tooltip = "Include Laurens' custom leader deck in setup",
+    label = " Celestial Leaders",
+    tooltip = "Include Celestial leader deck in setup",
     position = {-0.51, 0.5, 1.75},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
@@ -171,8 +172,8 @@ local toggleLaurensINCLUDE_params = {
     index = 9,
     click_function = "toggle_laurens_custom",
     function_owner = self,
-    label = " Laurens's 101\n Custom Leaders",
-    tooltip = "Exclude Laurens' custom leader deck from setup",
+    label = " Celestial Leaders",
+    tooltip = "Exclude Celestial leader deck from setup",
     position = {-0.51, 0.5, 1.75},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
@@ -402,6 +403,36 @@ local toggleScavengersINCLUDE_params = {
     font_color = BLACK,
     hover_color = RED
 }
+local togglePnp3EXCLUDE_params = {
+    index = 19,
+    click_function = "toggle_pnp3_custom",
+    function_owner = self,
+    label = " PnP#3\n Fated Leaders",
+    tooltip = "Include PnP#3 fated leader deck in setup",
+    position = {-0.51, 0.5, 4.03},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
+    color = BLACK,
+    font_color = GOLD,
+    hover_color = GREEN
+}
+local togglePnp3INCLUDE_params = {
+    index = 19,
+    click_function = "toggle_pnp3_custom",
+    function_owner = self,
+    label = " PnP#3\n Fated Leaders",
+    tooltip = "Exclude PnP#3 fated leader deck from setup",
+    position = {-0.51, 0.5, 4.03},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
+    color = GOLD,
+    font_color = BLACK,
+    hover_color = RED
+}
 SetupControl = {
     setup_control_guid = "7299d7",
     setup_control = {},
@@ -456,6 +487,8 @@ function onload()
     self.createButton(loreCountInc_params)
     self.createButton(setDefault_params)
     self.createButton(toggleScavengersEXCLUDE_params)
+    self.createButton(togglePnp3EXCLUDE_params)
+    -- must add buttosn in the order of the actual indices !!!!!!!!!!
 
     -- Initialize numeric display labels from globals (resolve default if nil)
     local function resolved_default_count()
@@ -555,6 +588,24 @@ function toggle_laurens_custom()
         end
     else
         self.editButton(toggleLaurensEXCLUDE_params)
+    end
+end
+
+function toggle_pnp3_custom()
+    local toggle = Global.getVar("with_pnp3_custom_leader")
+    local leaders_toggle = Global.getVar("with_leaders")
+
+    toggle = not toggle
+    Global.setVar("with_pnp3_custom_leader", toggle)
+
+    if (toggle) then
+        self.editButton(togglePnp3INCLUDE_params)
+        if not leaders_toggle then
+            Global.setVar("with_leaders", true)
+            self.editButton(toggleLeadersWITH_params)
+        end
+    else
+        self.editButton(togglePnp3EXCLUDE_params)
     end
 end
 
