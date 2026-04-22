@@ -252,7 +252,12 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
         with_faceup_discard = ActionCards.is_face_up_discard_active(),
         players = active_player_colors
     }
+    -- mark that we're performing the initial base setup so modules
+    -- (like ArcsPlayer) can perform one-time actions (e.g., destroy objectives)
+    Global.setVar("is_initial_setup", true)
     Global.call("set_game_in_progress", p)
+    -- Clear the flag after setup to avoid affecting reloads or later calls
+    Global.setVar("is_initial_setup", false)
 
     -- B
     local initiative = require("src/InitiativeMarker")

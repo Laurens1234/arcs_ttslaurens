@@ -210,7 +210,7 @@ local toggleDontUseBasePackINCLUDE_params = {
     scale = BUTTON_SCALE,
     color = RED,
     font_color = BLACK,
-    hover_color = BLACK
+    hover_color = GREEN
 }
 local leaderCountDec_params = {
     index = 11,

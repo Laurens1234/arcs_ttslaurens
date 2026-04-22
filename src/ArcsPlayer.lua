@@ -159,11 +159,12 @@ function ArcsPlayer.components_visibility(color, is_visible, is_campaign)
     for key, id in pairs(player_pieces[color]["components"]) do
         if (key == "cities") then
             ArcsPlayer._show_cities(color, is_visible)
-        elseif (key == "objective" and is_visible and not is_campaign) then
-            local obj = getObjectFromGUID(id)
-            if (obj) then
-                obj.destroy()
-            end
+        -- elseif (key == "objective" and is_visible and not is_campaign) then
+            elseif (key == "objective" and is_visible and not is_campaign and Global.getVar("is_initial_setup")) then
+                local obj = getObjectFromGUID(id)
+                if (obj) then
+                    obj.destroy()
+                end
         else
             local obj = getObjectFromGUID(id)
             if (obj) then
