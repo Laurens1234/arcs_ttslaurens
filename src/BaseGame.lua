@@ -339,18 +339,46 @@ function BaseGame.setup_leaders()
     -- check if leader is in player area
     local leader_count = 0
     local player_pieces_guids = Global.getVar("player_pieces_GUIDs")
+    local placed_leaders = {}
     for i, player in ipairs(active_players) do
+        placed_leaders[i] = nil
         local player_zones = getObjectFromGUID(
                                  player_pieces_guids[player.color]["area_zone"]).getObjects()
 
         for _, obj in pairs(player_zones) do
             if (obj.hasTag("Leader")) then
                 leader_count = leader_count + 1
+                placed_leaders[i] = obj
+                break
             end
         end
     end
     if leader_count < #active_players then
+        local msg = "Setup Leaders: " .. tostring(leader_count) .. " placed of " .. tostring(#active_players) .. " expected"
+        LOG.DEBUG(msg)
+        broadcastToAll(msg, {r=1, g=0.6, b=0.2})
         return false
+    end
+
+    -- Award any immediate effects for leaders placed in player areas
+    for i, player in ipairs(active_players) do
+        local leader_obj = placed_leaders[i]
+        if leader_obj and leader_obj.getName then
+            local name = leader_obj.getName()
+            local guid = leader_obj.getGUID and leader_obj.getGUID() or leader_obj.guid
+            local display_name = player.color
+            local info = "Player " .. tostring(display_name) .. " placed leader: " .. tostring(name) .. " (" .. tostring(guid) .. ")"
+            LOG.DEBUG(info)
+            broadcastToAll(info, {r=0.9, g=0.9, b=0.5})
+            -- if name == "Seer" then
+            --     local dbg = "Awarding 1 Fuel to " .. tostring(display_name) .. " for Seer"
+            --     LOG.DEBUG(dbg)
+            --     broadcastToAll(dbg, {r=0.8, g=0.58, b=0.27})
+            --     local player_proxy = ArcsPlayer
+            --     player_proxy.color = player.color
+            --     player_proxy:take_resource("Fuel", 3)
+            -- end
+        end
     end
 
     -- delete setup markers
@@ -751,7 +779,131 @@ function BaseGame.dealLeaders(player_count)
         local pos = {leader_pos.x + (col * spacing) + start_x_offset, leader_pos.y, leader_pos.z + (row * row_spacing_leaders)}
         leader_deck.takeObject({
             flip = true,
-            position = pos
+            position = pos,
+            callback_function = function(spawnedObject)
+                Wait.frames(function()
+                    if not spawnedObject or spawnedObject.isDestroyed and spawnedObject.isDestroyed() then return end
+                    local card_name = nil
+                    if spawnedObject.getName then
+                        card_name = spawnedObject.getName()
+                    end
+                    local card_guid = nil
+                    if spawnedObject.getGUID then
+                        card_guid = spawnedObject.getGUID()
+                    elseif spawnedObject.guid then
+                        card_guid = spawnedObject.guid
+                    end
+
+                    -- Explicit checks for special leaders by name or GUID.
+                    -- Add or duplicate blocks here for each leader you want to handle.
+
+                    -- Example: Seer
+                    if (card_name and card_name == "Seer") or (card_guid and card_guid == "SEER_GUID_PLACEHOLDER") then
+                        local match_msg = "Seer drawn while dealing: " .. tostring(card_name) .. " (" .. tostring(card_guid) .. ")"
+                        LOG.DEBUG(match_msg)
+                        broadcastToAll(match_msg, {r=0.2, g=0.9, b=0.2})
+                        pcall(function() Global.call("on_special_leader_drawn", {card = spawnedObject, name = card_name, guid = card_guid, leader = "Seer"}) end)
+                    end
+
+                    -- Add more if-blocks above as needed for other leaders.
+                        -- Explicit card stacks for specific leaders
+                        local function placeCardsOnTop(guids)
+                            local sd = getObjectFromGUID(BaseGame.components.pnp3_leaders_extra) or lore_deck
+                            if not sd or not sd.takeObject then return end
+                            local base_pos = spawnedObject.getPosition()
+                            -- Place GUIDs in reverse order so the last GUID in the list
+                            -- becomes the bottom card and the first becomes the top card.
+                            local n = #guids
+                            for i = n, 1, -1 do
+                                local g = guids[i]
+                                local stack_index = n - i + 1 -- 1 = bottom, increases upward
+                                -- First try to find the object directly on the table
+                                local obj = getObjectFromGUID(g)
+                                if obj and not (obj.isDestroyed and obj.isDestroyed()) then
+                                    if spawnedObject and spawnedObject.getPosition then
+                                        local top_pos = spawnedObject.getPosition()
+                                        obj.setPositionSmooth({top_pos.x, top_pos.y + 0.6 + ((stack_index - 1) * 0.2), top_pos.z})
+                                        if obj.getRotation and spawnedObject.getRotation then
+                                            obj.setRotation(spawnedObject.getRotation())
+                                        end
+                                    end
+                                else
+                                    -- Otherwise attempt to take the specific GUID from the source deck.
+                                    if sd and sd.takeObject then
+                                        pcall(function()
+                                            sd.takeObject({
+                                                guid = g,
+                                                flip = true,
+                                                position = {base_pos.x, base_pos.y + 1 + (stack_index * 0.2), base_pos.z},
+                                                callback_function = function(card)
+                                                    Wait.frames(function()
+                                                        if not card or card.isDestroyed and card.isDestroyed() then return end
+                                                        if spawnedObject and spawnedObject.getPosition then
+                                                            local top_pos = spawnedObject.getPosition()
+                                                            card.setPositionSmooth({top_pos.x, top_pos.y + 0.6 + ((stack_index - 1) * 0.2), top_pos.z})
+                                                            card.setRotation(spawnedObject.getRotation())
+                                                        end
+                                                    end, 1)
+                                                end
+                                            })
+                                        end)
+                                    end
+                                end
+                            end
+                        end
+
+                        local name_lower = card_name and string.lower(card_name) or nil
+
+                        -- God's Hand
+                        if (name_lower and name_lower == string.lower("God's Hand")) or (card_guid and (card_guid == "fe9e2d" or card_guid == "8a8534" or card_guid == "28334e" or card_guid == "db3626" or card_guid == "d28723" or card_guid == "add17e" or card_guid == "e692cf" or card_guid == "ee34d8")) then
+                            placeCardsOnTop({"fe9e2d", "8a8534", "28334e", "db3626", "d28723", "add17e", "e692cf", "ee34d8"})
+                        end
+
+                        -- Firebrand
+                        if (name_lower and name_lower == string.lower("Firebrand")) or (card_guid and card_guid == "69202b") then
+                            placeCardsOnTop({"69202b"})
+                        end
+
+                        -- Ancient Wraith
+                        if (name_lower and name_lower == string.lower("Ancient Wraith")) or (card_guid and card_guid == "68b727") then
+                            placeCardsOnTop({"68b727"})
+                        end
+
+                        -- Paladin
+                        if (name_lower and name_lower == string.lower("paladin")) or (card_guid and card_guid == "d72ac5") then
+                            placeCardsOnTop({"d72ac5"})
+                            -- Also take card 123db0 from bag 1239bb and place it on top of Paladin
+                            pcall(function()
+                                local bag = getObjectFromGUID("1239bb")
+                                if bag and bag.takeObject and spawnedObject and spawnedObject.getPosition then
+                                    local pal_pos = spawnedObject.getPosition()
+                                    bag.takeObject({
+                                        guid = "123db0",
+                                        flip = true,
+                                        position = {pal_pos.x, pal_pos.y + 1, pal_pos.z},
+                                        callback_function = function(card)
+                                            Wait.frames(function()
+                                                if not card or card.isDestroyed and card.isDestroyed() then return end
+                                                if spawnedObject and spawnedObject.getPosition then
+                                                    local top_pos = spawnedObject.getPosition()
+                                                    card.setPositionSmooth({top_pos.x, top_pos.y + 0.6, top_pos.z})
+                                                    if card.getRotation and spawnedObject.getRotation then
+                                                        card.setRotation(spawnedObject.getRotation())
+                                                    end
+                                                end
+                                            end, 1)
+                                        end
+                                    })
+                                end
+                            end)
+                        end
+
+                        -- Profiteer
+                        if (name_lower and name_lower == string.lower("Profiteer")) or (card_guid and (card_guid == "ddcb42" or card_guid == "16d945" or card_guid == "2762fa" or card_guid == "cfaceb")) then
+                            placeCardsOnTop({"ddcb42", "2762fa", "16d945", "cfaceb"})
+                        end
+                end, 1)
+            end
         })
     end
 

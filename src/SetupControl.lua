@@ -157,8 +157,8 @@ local toggleLaurensEXCLUDE_params = {
     index = 9,
     click_function = "toggle_laurens_custom",
     function_owner = self,
-    label = " Celestial Leaders",
-    tooltip = "Include Celestial leader deck in setup",
+    label = " Celestial Leaders\n Expansion",
+    tooltip = "Include Celestial Leaders Expansion made by Laurens https://laurens1234.github.io/arcs-arsenal/custom-cards",
     position = {-0.51, 0.5, 1.75},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
@@ -172,8 +172,8 @@ local toggleLaurensINCLUDE_params = {
     index = 9,
     click_function = "toggle_laurens_custom",
     function_owner = self,
-    label = " Celestial Leaders",
-    tooltip = "Exclude Celestial leader deck from setup",
+    label = "Celestial Leaders\n Expansion",
+    tooltip = "Exclude Celestial Leaders Expansion made by Laurens https://laurens1234.github.io/arcs-arsenal/custom-cards",
     position = {-0.51, 0.5, 1.75},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
@@ -762,7 +762,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 18 do
+    for i = 0, 19 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)
