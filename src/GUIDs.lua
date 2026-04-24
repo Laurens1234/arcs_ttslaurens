@@ -14,6 +14,8 @@ face_up_discard_action_deck_GUID = "a8e929"
 lead_card_zone_GUID = "9e5eae"
 FUDiscard_marker_GUID = "000207"
 
+lost_vaults_bag = "7f3e2f"
+
 zero_marker_GUID = "0289cb"
 zero_marker_zone_GUID = "3984e4"
 negative_power_zone_GUID = "3984e5"

@@ -226,7 +226,7 @@ local leaderCountDec_params = {
     scale = {0.3,0.3,0.3},
     color = RED,
     font_color = BLACK,
-    hover_color = GREEN
+    hover_color = PURPLE
 }
 local leaderCountDisplay_params = {
     index = 12,
@@ -255,7 +255,7 @@ local leaderCountInc_params = {
     scale = {0.3,0.3,0.3},
     color = GREEN,
     font_color = BLACK,
-    hover_color = GREEN
+    hover_color = PURPLE
 }
 local loreCountDec_params = {
     index = 14,
@@ -270,7 +270,7 @@ local loreCountDec_params = {
     scale = {0.3,0.3,0.3},
     color = RED,
     font_color = BLACK,
-    hover_color = GREEN
+    hover_color = PURPLE
 }
 local loreCountDisplay_params = {
     index = 15,
@@ -299,7 +299,7 @@ local loreCountInc_params = {
     scale = {0.3,0.3,0.3},
     color = GREEN,
     font_color = BLACK,
-    hover_color = GREEN
+    hover_color = PURPLE
 }
 local setDefault_params = {
     index = 17,
@@ -315,7 +315,7 @@ local setDefault_params = {
     scale = {0.3,0.3,0.3},
     color = GREEN,
     font_color = BLACK,
-    hover_color = GREEN
+    hover_color = PURPLE
 }
 local setupStartGame_params = {
     click_function = "doNothing",
@@ -404,7 +404,7 @@ local toggleScavengersINCLUDE_params = {
     hover_color = RED
 }
 local togglePnp3EXCLUDE_params = {
-    index = 19,
+    index = 20,
     click_function = "toggle_pnp3_custom",
     function_owner = self,
     label = " PnP#3\n Fated Leaders",
@@ -419,12 +419,42 @@ local togglePnp3EXCLUDE_params = {
     hover_color = GREEN
 }
 local togglePnp3INCLUDE_params = {
-    index = 19,
+    index = 20,
     click_function = "toggle_pnp3_custom",
     function_owner = self,
     label = " PnP#3\n Fated Leaders",
     tooltip = "Exclude PnP#3 fated leader deck from setup",
     position = {-0.51, 0.5, 4.03},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
+    color = GOLD,
+    font_color = BLACK,
+    hover_color = RED
+}
+local togglePnp2EXCLUDE_params = {
+    index = 19,
+    click_function = "toggle_pnp2_custom",
+    function_owner = self,
+    label = " PnP#2\n Lost Vaults",
+    tooltip = "Include PnP#2 Lost Vaults leader deck in setup",
+    position = {-0.51, 0.5, 3.46},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
+    color = BLACK,
+    font_color = GOLD,
+    hover_color = GREEN
+}
+local togglePnp2INCLUDE_params = {
+    index = 19,
+    click_function = "toggle_pnp2_custom",
+    function_owner = self,
+    label = " PnP#2\n Lost Vaults",
+    tooltip = "Exclude PnP#2 Lost Vaults leader deck from setup",
+    position = {-0.51, 0.5, 3.46},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -487,8 +517,9 @@ function onload()
     self.createButton(loreCountInc_params)
     self.createButton(setDefault_params)
     self.createButton(toggleScavengersEXCLUDE_params)
+    self.createButton(togglePnp2EXCLUDE_params)
     self.createButton(togglePnp3EXCLUDE_params)
-    -- must add buttosn in the order of the actual indices !!!!!!!!!!
+    -- must add buttons in the order of the actual indices !!!!!!!!!!
 
     -- Initialize numeric display labels from globals (resolve default if nil)
     local function resolved_default_count()
@@ -588,6 +619,24 @@ function toggle_laurens_custom()
         end
     else
         self.editButton(toggleLaurensEXCLUDE_params)
+    end
+end
+
+function toggle_pnp2_custom()
+    local toggle = Global.getVar("with_pnp2_custom_leader")
+    local leaders_toggle = Global.getVar("with_leaders")
+
+    toggle = not toggle
+    Global.setVar("with_pnp2_custom_leader", toggle)
+
+    if (toggle) then
+        self.editButton(togglePnp2INCLUDE_params)
+        if not leaders_toggle then
+            Global.setVar("with_leaders", true)
+            self.editButton(toggleLeadersWITH_params)
+        end
+    else
+        self.editButton(togglePnp2EXCLUDE_params)
     end
 end
 

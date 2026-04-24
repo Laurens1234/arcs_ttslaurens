@@ -369,7 +369,7 @@ function BaseGame.setup_leaders()
             local display_name = player.color
             local info = "Player " .. tostring(display_name) .. " placed leader: " .. tostring(name) .. " (" .. tostring(guid) .. ")"
             LOG.DEBUG(info)
-            broadcastToAll(info, {r=0.9, g=0.9, b=0.5})
+           -- broadcastToAll(info, {r=0.9, g=0.9, b=0.5})
             -- if name == "Seer" then
             --     local dbg = "Awarding 1 Fuel to " .. tostring(display_name) .. " for Seer"
             --     LOG.DEBUG(dbg)
@@ -801,7 +801,7 @@ function BaseGame.dealLeaders(player_count)
                     if (card_name and card_name == "Seer") or (card_guid and card_guid == "SEER_GUID_PLACEHOLDER") then
                         local match_msg = "Seer drawn while dealing: " .. tostring(card_name) .. " (" .. tostring(card_guid) .. ")"
                         LOG.DEBUG(match_msg)
-                        broadcastToAll(match_msg, {r=0.2, g=0.9, b=0.2})
+                       -- broadcastToAll(match_msg, {r=0.2, g=0.9, b=0.2})
                         pcall(function() Global.call("on_special_leader_drawn", {card = spawnedObject, name = card_name, guid = card_guid, leader = "Seer"}) end)
                     end
 
