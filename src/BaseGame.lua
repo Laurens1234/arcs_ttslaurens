@@ -310,18 +310,20 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
     -- D
     ActionCards.setup_deck(#active_players)
     BaseGame.setupBaseCourt(#active_players)
+    if (not Global.getVar("with_pnp2_lost_vaults")) then
+        LOG.INFO("no vaults")
+        chosen_setup_card = BaseGame.chooseSetupCard(#active_players)
+        BaseGame.setupOutOfPlayClusters(chosen_setup_card)
+        if (#active_players == 2) then
+            merchant:setup(chosen_setup_card.out_of_play_clusters)
+        end
 
-    chosen_setup_card = BaseGame.chooseSetupCard(#active_players)
-    BaseGame.setupOutOfPlayClusters(chosen_setup_card)
-    if (#active_players == 2) then
-        merchant:setup(chosen_setup_card.out_of_play_clusters)
-    end
-
-    if (Global.getVar("with_leaders")) then
-        BaseGame.dealLeaders(#active_players)
-        BaseGame.place_player_markers(active_players, chosen_setup_card)
-    else
-        BaseGame.setupPlayers(active_players, chosen_setup_card)
+        if (Global.getVar("with_leaders")) then
+            BaseGame.dealLeaders(#active_players)
+            BaseGame.place_player_markers(active_players, chosen_setup_card)
+        else
+            BaseGame.setupPlayers(active_players, chosen_setup_card)
+        end
     end
 
     Turns.type = 2

@@ -17,6 +17,7 @@ with_more_to_explore = false
 is_face_up_discard_active = false
 with_miniatures = false
 with_laurens_custom_leader = false
+with_pnp2_lost_vaults = false
 with_pnp3_leaders = false
 dont_use_base_and_pack_leaders = false
 use_scavengers_scouts_deck = false

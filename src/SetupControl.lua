@@ -438,7 +438,7 @@ local togglePnp2EXCLUDE_params = {
     click_function = "toggle_pnp2_custom",
     function_owner = self,
     label = " PnP#2\n Lost Vaults",
-    tooltip = "Include PnP#2 Lost Vaults leader deck in setup",
+    tooltip = "Include PnP#2 Lost Vaults in setup",
     position = {-0.51, 0.5, 3.46},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
@@ -453,7 +453,7 @@ local togglePnp2INCLUDE_params = {
     click_function = "toggle_pnp2_custom",
     function_owner = self,
     label = " PnP#2\n Lost Vaults",
-    tooltip = "Exclude PnP#2 Lost Vaults leader deck from setup",
+    tooltip = "Exclude PnP#2 Lost Vaults from setup",
     position = {-0.51, 0.5, 3.46},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
@@ -623,11 +623,11 @@ function toggle_laurens_custom()
 end
 
 function toggle_pnp2_custom()
-    local toggle = Global.getVar("with_pnp2_custom_leader")
+    local toggle = Global.getVar("with_pnp2_lost_vaults")
     local leaders_toggle = Global.getVar("with_leaders")
 
     toggle = not toggle
-    Global.setVar("with_pnp2_custom_leader", toggle)
+    Global.setVar("with_pnp2_lost_vaults", toggle)
 
     if (toggle) then
         self.editButton(togglePnp2INCLUDE_params)
@@ -811,7 +811,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 19 do
+    for i = 0, 20 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)

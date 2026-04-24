@@ -4,6 +4,10 @@ reach_board_GUID = "bb7d21"
 more_to_explore_fate_GUID = "768d3d"
 more_to_explore_lore_GUID = "3441e5"
 
+artifact_deck_GUID = "870e15"
+edifice_deck_GUID = "becb7c"
+lost_vaults_marker_bag_GUID = "7f3e2f"
+
 include_fates_GUID = "be0e27"
 action_deck_GUID = "227406"
 action_deck_zone_GUID = "80ed31" -- "9bd42d"
