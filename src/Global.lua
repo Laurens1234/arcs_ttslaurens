@@ -8,7 +8,7 @@ available_colors = {"White", "Yellow", "Red", "Teal"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = false
+debug = true
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -467,21 +467,61 @@ function onObjectNumberTyped(number_object, player_color, number_typed)
 end
 
 function tryObjectEnterContainer(container, object)
+  -- Only block objects from entering if the container is a locked Bag/Infinite.
+  -- Otherwise allow entry. This prevents unrelated stacking restrictions
+  -- from interfering with normal table interactions.
 
-    -- allow objects with at least one shared container tag to enter, with exceptions
-    for _, tag in ipairs(container.getTags()) do
-        if tag == "TealPiece" or tag == "YellowPiece" or tag == "RedPiece" or tag ==
-            "WhitePiece" or tag == "lock" then
-            goto continue
-        end
-            
-        if object.hasTag(tag) then
-            return true
-        end
-        ::continue::
+  if not container then return false end
+
+  local ctype = container.type
+  if not ctype then
+    return true
+  end
+
+  -- Only enforce for Bags/Infinite containers
+  if ctype ~= "Bag" and ctype ~= "Infinite" then
+    return true
+  end
+
+  -- If bag is unlocked, allow entry
+  local locked = false
+  if container.getLock then
+    local ok, res = pcall(function() return container.getLock() end)
+    if ok and res then locked = true end
+  end
+  if not locked then return true end
+
+  -- For locked bags, require at least one matching tag (preserve original behavior)
+  for _, tag in ipairs(container.getTags()) do
+    if tag == "TealPiece" or tag == "YellowPiece" or tag == "RedPiece" or tag ==
+      "WhitePiece" or tag == "lock" then
+      goto continue
     end
 
-    return false
+    if object.hasTag and object.hasTag(tag) then
+      return true
+    end
+    ::continue::
+  end
+
+  return false
+
+  --[[ Original implementation (commented out per request):
+  -- allow objects with at least one shared container tag to enter, with exceptions
+  for _, tag in ipairs(container.getTags()) do
+    if tag == "TealPiece" or tag == "YellowPiece" or tag == "RedPiece" or tag ==
+      "WhitePiece" or tag == "lock" then
+      goto continue
+    end
+            
+    if object.hasTag(tag) then
+      return true
+    end
+    ::continue::
+  end
+
+  return false -- stop card deck stop stacking function or bag stop
+  ]]--
 end
 
 ----------------------------------------------------
