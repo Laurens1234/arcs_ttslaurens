@@ -44,6 +44,8 @@ local BaseGame = {
             material_placeholder = "eb1cba",
             material_stack = "57c2c6",
             initiative = "b3b3d0",
+            event_die = "684608",
+            number_die = "d5e298",
             court_discard_backer = "2840db",
             court_deck_backer = "93690a"
             ,
