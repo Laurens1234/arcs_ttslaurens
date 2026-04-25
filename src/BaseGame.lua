@@ -46,6 +46,11 @@ local BaseGame = {
             initiative = "b3b3d0",
             court_discard_backer = "2840db",
             court_deck_backer = "93690a"
+            ,
+            artifact_deck = "870e15",
+            edifice_deck = "becb7c",
+            lost_vaults_marker_bag = "7f3e2f",
+            lost_vaults_rules = "952d62"
         }
     }
 }
@@ -324,6 +329,436 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
         else
             BaseGame.setupPlayers(active_players, chosen_setup_card)
         end
+    else
+        -- Lost Vaults enabled: instead of placing leaders on table, include
+        -- any enabled custom leader decks and deal 2 leader cards into each
+        -- player's hand.
+        local leader_deck = getObjectFromGUID(Global.getVar("fate_GUID"))
+        local lore_deck = getObjectFromGUID(Global.getVar("lore_GUID"))
+        local mte_fate = getObjectFromGUID(Global.getVar("more_to_explore_fate_GUID"))
+        local mte_lore = getObjectFromGUID(Global.getVar("more_to_explore_lore_GUID"))
+        local artifact_deck = getObjectFromGUID(Global.getVar("artifact_deck_GUID"))
+
+        if not leader_deck then
+            LOG.INFO("Leader deck not found; cannot deal leaders to hands")
+            return
+        end
+
+        -- Include Leaders & Lore expansion cards if enabled
+        if (Global.getVar("with_more_to_explore")) then
+            leader_deck.putObject(mte_fate)
+            if lore_deck and mte_lore then lore_deck.putObject(mte_lore) end
+        end
+
+        -- If the user requested to not use the base and pack leader objects,
+        -- remove those physical objects so custom decks fully replace them.
+        local base_leaders_pos, base_leaders_rot
+        if (Global.getVar("dont_use_base_and_pack_leaders")) then
+            local base_leaders_obj = getObjectFromGUID(BaseGame.components.leaders)
+            if (base_leaders_obj) then
+                base_leaders_pos = base_leaders_obj.getPosition()
+                base_leaders_rot = base_leaders_obj.getRotation()
+                destroyObject(base_leaders_obj)
+                broadcastToAll("Removed base leaders from the table")
+            end
+            local expansion_leaders_obj = getObjectFromGUID(BaseGame.components.leaders_expansion)
+            if (expansion_leaders_obj) then
+                destroyObject(expansion_leaders_obj)
+                broadcastToAll("Removed expansion leaders from the table")
+            end
+        end
+
+        -- Optionally include custom leader decks (Laurens, PnP#3, etc.)
+        local custom_decks = {}
+        local custom_names = {}
+        if Global.getVar("with_laurens_custom_leader") then
+            local d = getObjectFromGUID(BaseGame.components.laurens_custom_leaders)
+            if d then table.insert(custom_decks, d); table.insert(custom_names, "Laurens") end
+        end
+        if Global.getVar("with_pnp3_custom_leader") then
+            local d = getObjectFromGUID(BaseGame.components.pnp3_leaders)
+            if d then table.insert(custom_decks, d); table.insert(custom_names, "PnP#3") end
+        end
+
+        if #custom_decks > 0 then
+            if Global.getVar("dont_use_base_and_pack_leaders") then
+                -- Use the first custom deck as the leader deck: move it to the
+                -- base leaders' position if available, then merge any others into it.
+                local target = custom_decks[1]
+                if base_leaders_pos then
+                    target.setPosition({base_leaders_pos.x, base_leaders_pos.y, base_leaders_pos.z})
+                    if base_leaders_rot then target.setRotation(base_leaders_rot) end
+                elseif leader_deck and leader_deck.getPosition then
+                    local p = leader_deck.getPosition()
+                    target.setPosition({p.x, p.y, p.z})
+                end
+                for i = 2, #custom_decks do
+                    pcall(function() target.putObject(custom_decks[i]) end)
+                end
+                leader_deck = target
+                broadcastToAll("Using custom leader deck(s): " .. table.concat(custom_names, ", "))
+            else
+                -- Merge selected custom decks into the base fate deck
+                for i, d in ipairs(custom_decks) do
+                    pcall(function() leader_deck.putObject(d) end)
+                    broadcastToAll("Including " .. custom_names[i] .. "'s custom leader deck")
+                end
+            end
+        end
+
+        leader_deck.randomize()
+        Wait.time(function()
+            leader_deck.deal(2)
+        end, 1)
+
+
+        local edifice_guid = Global.getVar("edifice_deck_GUID") or "becb7c"
+        local edifice = getObjectFromGUID(edifice_guid)
+        if edifice and edifice.setPosition then
+            pcall(function()
+                edifice.setPosition({2.37, 1.12, -0.29})
+                if edifice.randomize then edifice.randomize() end
+            end)
+            LOG.INFO("Moved and shuffled edifice deck (GUID=" .. tostring(edifice_guid) .. ") for Lost Vaults setup")
+        else
+            LOG.INFO("Edifice deck not found for Lost Vaults (GUID=" .. tostring(edifice_guid) .. ")")
+        end
+        LOG.INFO("with_pnp2_lost_vaults enabled: randomized base court; skipping card draws")
+
+        for i = 1, 2 do
+            edifice.takeObject({
+                position = {x = -62.36, y = 1.02, z = -38.22}
+            })
+        end
+        -- Place 6 random lore cards and 6 random artifact cards on top of the
+        -- edifice deck, using the same randomize/wait/take pattern used when
+        -- dealing leaders. Artifact cards are moved alongside lore cards.
+        if edifice and (lore_deck or artifact_deck) then
+            pcall(function()
+                if lore_deck and lore_deck.randomize then lore_deck.randomize() end
+                if artifact_deck and artifact_deck.randomize then artifact_deck.randomize() end
+                local ed_pos = edifice.getPosition and edifice.getPosition() or {x=0,y=1,z=0}
+
+                -- Wait a frame like leader dealing, then take cards and place them into edifice
+                Wait.time(function()
+                    for i = 1, 6 do
+                        -- take a lore card (if available)
+                        if lore_deck and lore_deck.takeObject then
+                            lore_deck.takeObject({
+                                flip = false,
+                                position = {ed_pos.x, ed_pos.y + 1 + (i * 0.02), ed_pos.z},
+                                callback_function = function(card)
+                                    Wait.frames(function()
+                                        if card and not (card.isDestroyed and card.isDestroyed()) then
+                                            pcall(function()
+                                                if edifice.putObject then
+                                                    edifice.putObject(card)
+                                                else
+                                                    local p = edifice.getPosition and edifice.getPosition() or ed_pos
+                                                    card.setPositionSmooth({p.x, p.y + 1, p.z})
+                                                end
+                                            end)
+                                        end
+                                    end, 1)
+                                end
+                            })
+                        end
+
+                        -- take an artifact card (if available)
+                        if artifact_deck and artifact_deck.takeObject then
+                            artifact_deck.takeObject({
+                                flip = false,
+                                -- slight x offset so spawned objects don't collide visually
+                                position = {ed_pos.x + 0.03, ed_pos.y + 1 + (i * 0.02), ed_pos.z},
+                                callback_function = function(card)
+                                    Wait.frames(function()
+                                        if card and not (card.isDestroyed and card.isDestroyed()) then
+                                            pcall(function()
+                                                if edifice.putObject then
+                                                    edifice.putObject(card)
+                                                else
+                                                    local p = edifice.getPosition and edifice.getPosition() or ed_pos
+                                                    card.setPositionSmooth({p.x, p.y + 1, p.z})
+                                                end
+                                            end)
+                                        end
+                                    end, 1)
+                                end
+                            })
+                        end
+                    end
+
+                    -- After a short delay, shuffle the edifice deck to mix the added cards.
+                    Wait.time(function()
+                        if edifice then
+                            pcall(function()
+                                if edifice.randomize then
+                                    edifice.randomize()
+                                elseif edifice.shuffle then
+                                    edifice.shuffle()
+                                end
+                            end)
+                            LOG.INFO("Placed 6 lore and 6 artifact cards on top of edifice and shuffled (Lost Vaults setup)")
+
+                            -- After shuffling, take one card for each of two random planets
+                            local cluster_zone_guids = Global.getVar("cluster_zone_GUIDs") or {}
+                            local planet_candidates = {}
+                            for cluster = 1, 6 do
+                                local entry = cluster_zone_guids[cluster]
+                                if entry then
+                                    for _, sys in ipairs({"a", "b", "c"}) do
+                                        local sys_entry = entry[sys]
+                                        if sys_entry and sys_entry["buildings"] and #sys_entry["buildings"] > 0 then
+                                            local bguid = sys_entry["buildings"][1]
+                                            local obj = getObjectFromGUID(bguid)
+                                            if obj and obj.getPosition then
+                                                table.insert(planet_candidates, {cluster = cluster, system = sys, pos = obj.getPosition(), building_guid = bguid})
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+
+                            if #planet_candidates >= 2 and edifice.takeObject then
+                                -- pick two distinct random indices
+                                local function pick_two(n)
+                                    local i = math.random(n)
+                                    local j = math.random(n-1)
+                                    if j >= i then j = j + 1 end
+                                    return i, j
+                                end
+                                local i, j = pick_two(#planet_candidates)
+                                local targets = {planet_candidates[i], planet_candidates[j]}
+                                local remaining = {}
+                                for idx, p in ipairs(planet_candidates) do
+                                    if idx ~= i and idx ~= j then table.insert(remaining, p) end
+                                end
+
+                                local clusters_with_cards = {}
+                                for _, entry in ipairs(targets) do
+                                    local pos = entry.pos
+                                    table.insert(clusters_with_cards, entry.cluster)
+                                    pcall(function()
+                                        edifice.takeObject({
+                                            flip = true,
+                                            position = {pos.x, pos.y + 1, pos.z},
+                                            callback_function = function(card)
+                                                Wait.frames(function()
+                                                    if card and card.setPositionSmooth and pos then
+                                                        card.setPositionSmooth({pos.x, pos.y + 0.5, pos.z})
+                                                    end
+                                                    -- If the script placed this card, also place a matching
+                                                    -- Lost Vaults marker from the bag (if present).
+                                                    -- marker placement handled centrally in Global.lua detection
+                                                end, 1)
+                                            end
+                                        })
+                                    end)
+                                end
+                                LOG.INFO("Placed 1 edifice card onto 2 random planets")
+
+                                -- Move the existing initiative marker (by GUID) to a remaining
+                                -- planet (do not spawn a new copy). Choose one remaining entry.
+                                local initiative_cluster = nil
+                                if #remaining > 0 then
+                                    local target_entry = remaining[math.random(#remaining)]
+                                    local target_pos = target_entry.pos
+                                    initiative_cluster = target_entry.cluster
+                                    pcall(function()
+                                        local init_guid = BaseGame.components and BaseGame.components.core and BaseGame.components.core.initiative
+                                            or Global.getVar("initiative_GUID")
+                                        local init_obj = init_guid and getObjectFromGUID(init_guid)
+                                        if init_obj and (init_obj.setPositionSmooth or init_obj.setPosition) then
+                                            if init_obj.setPositionSmooth then
+                                                init_obj.setPositionSmooth({target_pos.x, target_pos.y + 0.5, target_pos.z})
+                                            else
+                                                init_obj.setPosition({target_pos.x, target_pos.y + 0.5, target_pos.z})
+                                            end
+
+                                            -- Move the event and number dice to the die zone instead (a bit higher)
+                                            local die_zone_guid = Global.getVar("die_zone_GUID") or "1b45bb"
+                                            local die_zone = getObjectFromGUID(die_zone_guid)
+                                            local die_x, die_y, die_z = nil, nil, nil
+                                            if die_zone and die_zone.getPosition then
+                                                local dz = die_zone.getPosition()
+                                                die_x, die_y, die_z = dz.x, dz.y + 1.2, dz.z
+                                            else
+                                                -- fallback to the planet target if die zone missing
+                                                die_x, die_y, die_z = target_pos.x, target_pos.y + 1.2, target_pos.z
+                                            end
+
+                                            local event_die_guid = Global.getVar("event_die_GUID") or "684608"
+                                            local number_die_guid = Global.getVar("number_die_GUID") or "d5e298"
+                                            local event_die = getObjectFromGUID(event_die_guid)
+                                            local number_die = getObjectFromGUID(number_die_guid)
+
+                                            pcall(function()
+                                                if event_die and event_die.setPositionSmooth then
+                                                    event_die.setPositionSmooth({die_x + 0.18, die_y, die_z})
+                                                elseif event_die and event_die.setPosition then
+                                                    event_die.setPosition({die_x + 0.18, die_y, die_z})
+                                                end
+                                            end)
+                                            pcall(function()
+                                                if number_die and number_die.setPositionSmooth then
+                                                    number_die.setPositionSmooth({die_x - 0.18, die_y, die_z})
+                                                elseif number_die and number_die.setPosition then
+                                                    number_die.setPosition({die_x - 0.18, die_y, die_z})
+                                                end
+                                            end)
+                                            LOG.INFO("Moved initiative marker (" .. tostring(init_guid) .. ") and dice to die zone " .. tostring(die_zone_guid) .. " (cluster " .. tostring(initiative_cluster) .. ")")
+                                        else
+                                            LOG.INFO("Initiative marker not found or cannot be moved")
+                                        end
+                                    end)
+                                else
+                                    LOG.INFO("No remaining planet to place initiative marker")
+                                end
+
+                                if initiative_cluster then table.insert(clusters_with_cards, initiative_cluster) end
+
+                                -- Now mark clusters out of play based on player count, excluding
+                                -- clusters we placed cards or initiative on.
+                                local players_count = #active_players
+                                local clusters_to_remove = (players_count == 4) and 1 or 2
+                                local candidates = {}
+                                for cluster = 1, 6 do
+                                    local skip = false
+                                    for _, c in ipairs(clusters_with_cards) do
+                                        if c == cluster then skip = true; break end
+                                    end
+                                    if not skip then table.insert(candidates, cluster) end
+                                end
+
+                                if #candidates >= clusters_to_remove then
+                                    local chosen = {}
+                                    while #chosen < clusters_to_remove do
+                                        local idx = math.random(#candidates)
+                                        table.insert(chosen, candidates[idx])
+                                        table.remove(candidates, idx)
+                                    end
+                                    local fake_setup = { out_of_play_clusters = chosen }
+                                    BaseGame.setupOutOfPlayClusters(fake_setup)
+                                    LOG.INFO("Marked clusters out of play: " .. table.concat(chosen, ", "))
+                                    -- After marking clusters out of play, move Vault cards per request.
+                                    -- First move the lost vaults rules object into position.
+                                    pcall(function()
+                                        local rules_guid = Global.getVar("lost_vaults_rules_GUID") or "952d62"
+                                        local ok, rules_obj = pcall(function() return getObjectFromGUID(rules_guid) end)
+                                        if ok and rules_obj then
+                                            pcall(function()
+                                                if rules_obj.setPositionSmooth then
+                                                    rules_obj.setPositionSmooth({36.48, 0.96, -0.20})
+                                                elseif rules_obj.setPosition then
+                                                    rules_obj.setPosition({36.48, 0.96, -0.20})
+                                                end
+                                            end)
+                                        end
+                                    end)
+                                    pcall(function()
+                                        local target_v1 = {22.00, 0.97, 3.99}
+                                        local moved_v1 = 0
+                                        local bag_guid = Global.getVar("lost_vaults_marker_bag_GUID") or "7f3e2f"
+                                        local bag = getObjectFromGUID(bag_guid)
+                                        if bag and bag.getObjects then
+                                            local okc, contents = pcall(function() return bag.getObjects() end)
+                                            if okc and contents then
+                                                for _, item in ipairs(contents) do
+                                                    if moved_v1 >= 2 then break end
+                                                    if item and item.name and item.name == "Vault 1" and item.guid then
+                                                        moved_v1 = moved_v1 + 1
+                                                        pcall(function()
+                                                            if bag.takeObject then
+                                                                local place_x = target_v1[1] + ((moved_v1 - 1) * 0.4)
+                                                                local place_z = target_v1[3] + ((moved_v1 - 1) * 0.2)
+                                                                bag.takeObject({
+                                                                    guid = item.guid,
+                                                                    position = {place_x, target_v1[2] + 0.5, place_z},
+                                                                    callback_function = function(taken)
+                                                                        Wait.frames(function()
+                                                                            if taken then
+                                                                                pcall(function()
+                                                                                    if taken.setRotation then taken.setRotation({0, 180, 0}) end
+                                                                                end)
+                                                                                if taken.setPositionSmooth then
+                                                                                    taken.setPositionSmooth({place_x, target_v1[2], place_z})
+                                                                                elseif taken.setPosition then
+                                                                                    taken.setPosition({place_x, target_v1[2], place_z})
+                                                                                end
+                                                                            end
+                                                                        end, 1)
+                                                                    end
+                                                                })
+                                                            end
+                                                        end)
+                                                    end
+                                                end
+                                            end
+                                        else
+                                            LOG.INFO("Vault 1 bag not found; could not move Vault 1 cards")
+                                        end
+                                        LOG.INFO("Moved " .. tostring(moved_v1) .. " Vault 1 card(s) to {22.00,0.97,3.99}")
+
+                                        -- Move 2 cards named Vault 2 from the bag named "Vault 2"
+                                        local target_v2 = {22.00, 0.97, 1.58}
+                                        local moved_v2 = 0
+                                        local vault2_bag_guid = Global.getVar("lost_vaults_marker_bag_GUID") or "7f3e2f"
+                                        local vault2_bag = getObjectFromGUID(vault2_bag_guid)
+                                        if vault2_bag and vault2_bag.getObjects then
+                                            local okc, contents = pcall(function() return vault2_bag.getObjects() end)
+                                            if okc and contents then
+                                                for _, item in ipairs(contents) do
+                                                    if moved_v2 >= 2 then break end
+                                                    if item and item.name and item.name == "Vault 2" and item.guid then
+                                                        moved_v2 = moved_v2 + 1
+                                                        pcall(function()
+                                                            if vault2_bag.takeObject then
+                                                                local place_x2 = target_v2[1] + ((moved_v2 - 1) * 0.4)
+                                                                local place_z2 = target_v2[3] + ((moved_v2 - 1) * 0.2)
+                                                                vault2_bag.takeObject({
+                                                                    guid = item.guid,
+                                                                    position = {place_x2, target_v2[2] + 0.5, place_z2},
+                                                                    callback_function = function(taken)
+                                                                        Wait.frames(function()
+                                                                            if taken then
+                                                                                pcall(function()
+                                                                                    if taken.setRotation then taken.setRotation({0, 180, 0}) end
+                                                                                end)
+                                                                                if taken.setPositionSmooth then
+                                                                                    taken.setPositionSmooth({place_x2, target_v2[2], place_z2})
+                                                                                elseif taken.setPosition then
+                                                                                    taken.setPosition({place_x2, target_v2[2], place_z2})
+                                                                                end
+                                                                            end
+                                                                        end, 1)
+                                                                    end
+                                                                })
+                                                            end
+                                                        end)
+                                                    end
+                                                end
+                                            end
+                                        else
+                                            LOG.INFO("Vault 2 bag not found; could not move Vault 2 cards")
+                                        end
+                                        LOG.INFO("Moved " .. tostring(moved_v2) .. " Vault 2 card(s) to {22.00,0.97,1.58}")
+                                        pcall(function()
+                                            broadcastToAll("Continue at step 5 of the Lost Vaults Setup: Choose leader and establish home.", Color.Blue)
+                                        end)
+                                    end)
+                                else
+                                    LOG.INFO("Not enough available clusters to mark out of play")
+                                end
+                            else
+                                LOG.INFO("Not enough planet positions or edifice.takeObject missing; cannot place planet cards")
+                            end
+                        end
+                    end, 2)
+                end, 1)
+            end)
+        else
+            LOG.INFO("Could not place lore/artifact cards on edifice (missing objects)")
+        end
     end
 
     Turns.type = 2
@@ -422,7 +857,16 @@ function BaseGame.setupBaseCourt(player_count)
     Wait.time(function()
         local qty = (player_count == 2 and 3 or 4)
 
+        -- Always shuffle/randomize the base court deck after placing it
         base_court.randomize()
+
+        -- If Lost Vaults (PnP#2) is enabled, do not move or flip any cards
+        -- from the base court during setup; leave the deck in place.
+        if Global.getVar("with_pnp2_lost_vaults") then
+            -- Move the edifice deck to the requested position and shuffle it
+            return
+        end
+
         local court_deck_pos = base_court.getPosition()
         court_deck_pos_z = court_deck_pos.z + 0.35
 
@@ -1195,5 +1639,6 @@ function BaseGame.setup_or_destroy_miniatures(with_miniatures)
         BaseGame.destroy_unused_miniature_supplies()
     end
 end
+
 
 return BaseGame

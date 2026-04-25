@@ -750,7 +750,7 @@ function setup_base_game()
         Global.getVar("with_more_to_explore"),
         Global.getVar("with_miniatures"))
 
-    if (base_setup_success and Global.getVar("with_leaders")) then
+    if (base_setup_success and Global.getVar("with_leaders") and not Global.getVar("with_pnp2_lost_vaults")) then
         leader_buttons()
         return
     end

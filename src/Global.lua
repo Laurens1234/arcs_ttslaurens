@@ -8,7 +8,7 @@ available_colors = {"White", "Yellow", "Red", "Teal"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = true
+debug = false
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -1451,6 +1451,14 @@ function move_and_lock_object(params)
     else
         params.obj.locked = not params.is_visible
     end
+    -- Ensure the lost-vaults rules object remains locked when it is made visible
+    pcall(function()
+      local obj_guid = nil
+      if params.obj.getGUID then obj_guid = params.obj.getGUID() elseif params.obj.guid then obj_guid = params.obj.guid end
+      if obj_guid and lost_vaults_rules_GUID and obj_guid == lost_vaults_rules_GUID and params.is_visible then
+        params.obj.locked = true
+      end
+    end)
 end
 
 function set_active_players(players)
@@ -4047,3 +4055,158 @@ starting_pieces["Profiteer"] = {
     ships = 3
   }
 }
+
+--lost vaults markers
+
+-- When a card is flipped face-up or dropped face-up on the table, check the
+-- Lost Vaults marker bag and move a matching marker (by name) to the card's
+-- position if one exists in the bag. Exposed on _G so other scripts can call it.
+_G.place_lost_vaults_marker_for_card = function(card)
+    if not card or not card.getName or not card.getPosition then return end
+    local ok, name = pcall(function() return card.getName() end)
+    if not ok or not name or name == "" then return end
+
+    -- Check whether the card is face-down; be tolerant of API shapes.
+    local is_down = nil
+    pcall(function() is_down = card.is_face_down end)
+    if is_down == nil then pcall(function() is_down = card.is_face_down() end) end
+    if is_down == true then return end
+
+    local okpos, pos = pcall(function() return card.getPosition() end)
+    if not okpos or not pos then return end
+
+    local bag_guid = Global.getVar("lost_vaults_marker_bag_GUID") or "7f3e2f"
+    local bag = getObjectFromGUID(bag_guid)
+    if not bag or not bag.getObjects then return end
+
+    local contents = bag.getObjects()
+    for _, item in ipairs(contents) do
+        if item and item.name and item.name == name then
+            pcall(function()
+                if bag.takeObject then
+                  -- compute how many existing markers with this name are near the target
+                  local existing = 0
+                  local all_objs = getAllObjects()
+                  for _, o in ipairs(all_objs) do
+                    local okn, oname = pcall(function() return (o.getName and o.getName()) or o.name end)
+                    if okn and oname and oname == name then
+                      local okp, opos = pcall(function() return o.getPosition() end)
+                      if okp and opos then
+                        local dx = opos.x - pos.x
+                        local dz = opos.z - pos.z
+                        if (dx * dx + dz * dz) < 0.5 then existing = existing + 1 end
+                      end
+                    end
+                  end
+                  local place_x = pos.x + (existing * 0.4)
+                  local place_z = pos.z + (existing * 0.2)
+                  bag.takeObject({
+                    guid = item.guid,
+                    position = {place_x, pos.y + 0.5, place_z},
+                    callback_function = function(taken)
+                      Wait.frames(function()
+                        if taken then
+                          pcall(function()
+                            if taken.setRotation then taken.setRotation({0, 180, 0}) end
+                          end)
+                          if taken.setPositionSmooth then
+                            taken.setPositionSmooth({place_x, pos.y + 0.5, place_z})
+                          elseif taken.setPosition then
+                            taken.setPosition({place_x, pos.y + 0.5, place_z})
+                          end
+                        end
+                      end, 1)
+                    end
+                  })
+                end
+            end)
+            break
+        end
+    end
+end
+
+_G.onObjectFlip = function(player_color, obj)
+  pcall(function() _G.place_lost_vaults_marker_for_card(obj) end)
+  pcall(function() _G.place_veil_on_loom(obj) end)
+end
+
+_G.onObjectDrop = function(player_color, obj)
+  pcall(function() _G.place_lost_vaults_marker_for_card(obj) end)
+  pcall(function() _G.place_veil_on_loom(obj) end)
+end
+
+-- If a card named "The Loom" is placed face-up, find up to 4 cards named
+-- "Veil" (on-table or inside bags) and move them onto the Loom card.
+_G.place_veil_on_loom = function(loom_card)
+  if not loom_card or not loom_card.getName or not loom_card.getPosition then return end
+  local ok, name = pcall(function() return loom_card.getName() end)
+  if not ok or not name or name ~= "The Loom" then return end
+
+  local okpos, pos = pcall(function() return loom_card.getPosition() end)
+  if not okpos or not pos then return end
+
+  local candidates = {}
+  local all = getAllObjects()
+  for _, o in ipairs(all) do
+    if o then
+      -- on-table Veil cards
+      local okn, nm = pcall(function() return o.getName and o.getName() or o.name end)
+      if okn and nm == "Veil" then
+        table.insert(candidates, {type = "table", obj = o})
+      end
+      -- bags: inspect contents for Veil entries
+      local isBag = false
+      pcall(function() if o.tag and o.tag == "Bag" then isBag = true end end)
+      if isBag and o.getObjects then
+        local okc, contents = pcall(function() return o.getObjects() end)
+        if okc and contents then
+          for _, item in ipairs(contents) do
+            if item and item.name and item.name == "Veil" then
+              table.insert(candidates, {type = "bag", bag = o, guid = item.guid})
+            end
+          end
+        end
+      end
+    end
+  end
+
+  if #candidates == 0 then return end
+
+  local want = 4
+  for i = 1, math.min(want, #candidates) do
+    local c = candidates[i]
+    local target_y = pos.y + 0.6 + ((i - 1) * 0.2)
+    if c.type == "table" and c.obj then
+      pcall(function()
+        if c.obj.setRotation then pcall(function() c.obj.setRotation({0,180,0}) end) end
+        if c.obj.setPositionSmooth then
+          c.obj.setPositionSmooth({pos.x, target_y, pos.z})
+        else
+          c.obj.setPosition({pos.x, target_y, pos.z})
+        end
+      end)
+    elseif c.type == "bag" and c.bag and c.guid then
+      pcall(function()
+        if c.bag.takeObject then
+          c.bag.takeObject({
+            guid = c.guid,
+            position = {pos.x, target_y + 0.5, pos.z},
+            callback_function = function(taken)
+              Wait.frames(function()
+                if taken then
+                  pcall(function() if taken.setRotation then taken.setRotation({0,180,0}) end end)
+                  if taken.setPositionSmooth then
+                    taken.setPositionSmooth({pos.x, target_y, pos.z})
+                  elseif taken.setPosition then
+                    taken.setPosition({pos.x, target_y, pos.z})
+                  end
+                end
+              end, 1)
+            end
+          })
+        end
+      end)
+    end
+  end
+  LOG.INFO("Placed " .. tostring(math.min(want, #candidates)) .. " Veil card(s) onto The Loom")
+end

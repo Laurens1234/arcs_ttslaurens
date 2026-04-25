@@ -7,6 +7,7 @@ more_to_explore_lore_GUID = "3441e5"
 artifact_deck_GUID = "870e15"
 edifice_deck_GUID = "becb7c"
 lost_vaults_marker_bag_GUID = "7f3e2f"
+lost_vaults_rules_GUID = "952d62"
 
 include_fates_GUID = "be0e27"
 action_deck_GUID = "227406"
@@ -17,8 +18,6 @@ seize_zone_GUID = "e6eca8"
 face_up_discard_action_deck_GUID = "a8e929"
 lead_card_zone_GUID = "9e5eae"
 FUDiscard_marker_GUID = "000207"
-
-lost_vaults_bag = "7f3e2f"
 
 zero_marker_GUID = "0289cb"
 zero_marker_zone_GUID = "3984e4"
