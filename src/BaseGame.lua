@@ -47,8 +47,7 @@ local BaseGame = {
             event_die = "684608",
             number_die = "d5e298",
             court_discard_backer = "2840db",
-            court_deck_backer = "93690a"
-            ,
+            court_deck_backer = "93690a",
             artifact_deck = "870e15",
             edifice_deck = "becb7c",
             lost_vaults_marker_bag = "7f3e2f",
