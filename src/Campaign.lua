@@ -70,7 +70,7 @@ local merchant = require("src/Merchant")
 
 function Campaign.components_visibility(is_visible)
     local visibility = is_visible and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                           {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
 
     for _, id in pairs(Campaign.guids) do
         local obj = getObjectFromGUID(id)
@@ -88,7 +88,7 @@ function Campaign.setup(with_leaders, with_ll_expansion, with_miniatures)
 
     local active_players = Global.call("getOrderedPlayers")
     Global.setVar("active_players", active_players)
-    if (#active_players < 2 or #active_players > 4) then
+    if (#active_players < 2 or #active_players > 5) then
         return false
     end
 

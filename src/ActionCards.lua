@@ -81,7 +81,7 @@ end
 function ActionCards.setup_deck(player_count)
     local four_player_deck = getObjectFromGUID(action_deck_4P_GUID)
     local deck = ActionCards.get_action_deck()
-    if (player_count == 4) then
+    if (player_count >= 4) then
         deck.putObject(four_player_deck)
         Wait.time(function()
             deck.randomize()
@@ -127,7 +127,7 @@ end
 
 function ActionCards.check_deck()
     local deck = ActionCards.get_action_deck()
-    local deck_size = #getSeatedPlayers() == 4 and 28 or 20
+    local deck_size = #getSeatedPlayers() >= 4 and 28 or 20
     return deck_size <= #deck.getObjects()
 end
 
@@ -418,7 +418,7 @@ end
 
 function ActionCards.faceup_discard_visibility(show)
     local visibility = show and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                               {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
     local discard = getObjectFromGUID(FUDiscard_marker_GUID)
     discard.setInvisibleTo(visibility)
 end

@@ -88,12 +88,18 @@ local leader_setup_markers = {
         C = "http://cloud-3.steamusercontent.com/ugc/2470859798801204273/D14267BB17B5B5F5A0EB5D41DDE2180A8972F7F0/",
         D = "http://cloud-3.steamusercontent.com/ugc/2470859798801204273/D14267BB17B5B5F5A0EB5D41DDE2180A8972F7F0/"
     },
+    Pink = {
+        A = "http://cloud-3.steamusercontent.com/ugc/2470859798801204323/C2AB80A86A05E6D091EEEFC3BBC37750441C8458/",
+        B = "http://cloud-3.steamusercontent.com/ugc/2470859798801204362/040363BB8DEFF3E79EEF4E9F022346006808DAF1/",
+        C = "http://cloud-3.steamusercontent.com/ugc/2470859798801204408/C404410F6AFD3AA2AA563EF27D796C4E8F872B00/",
+        D = "http://cloud-3.steamusercontent.com/ugc/2470859798801204408/C404410F6AFD3AA2AA563EF27D796C4E8F872B00/"
+    },
     guids = {}
 }
 
 function BaseGame.leaders_visibility(show, with_expansion)
     local visibility = show and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                           {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
     if (with_expansion) then
         local expansion = getObjectFromGUID(BaseGame.components
                                                 .leaders_expansion)
@@ -142,7 +148,7 @@ end
 
 function BaseGame.lore_visibility(show, with_expansion)
     local visibility = show and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                           {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
     if (with_expansion) then
         local expansion = getObjectFromGUID(BaseGame.components.lore_expansion)
         if (expansion) then
@@ -190,7 +196,7 @@ end
 
 function BaseGame.core_components_visibility(show)
     local visibility = show and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                           {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
     for _, id in pairs(BaseGame.components.core) do
         local obj = getObjectFromGUID(id)
         if (obj) then
@@ -283,7 +289,7 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
 
     local active_players = Global.call("getOrderedPlayers")
     Global.setVar("active_players", active_players)
-    if (#active_players < 2 or #active_players > 4) then
+    if (#active_players < 2 or #active_players > 5) then
         return false
     end
 
@@ -621,7 +627,14 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
                                 -- Now mark clusters out of play based on player count, excluding
                                 -- clusters we placed cards or initiative on.
                                 local players_count = #active_players
-                                local clusters_to_remove = (players_count == 4) and 1 or 2
+                                local clusters_to_remove
+                                if players_count == 5 then
+                                    clusters_to_remove = 0
+                                elseif players_count >= 4 then
+                                    clusters_to_remove = 1
+                                else
+                                    clusters_to_remove = 2
+                                end
                                 local candidates = {}
                                 for cluster = 1, 6 do
                                     local skip = false
@@ -887,7 +900,7 @@ end
 function BaseGame.chooseSetupCard(player_count)
     LOG.INFO("Choose Setup Card")
 
-    local player_colors = {"White", "Yellow", "Teal", "Red"}
+    local player_colors = {"White", "Yellow", "Teal", "Red", "Pink"}
 
     local two_player_setup_cards = {
         {
@@ -961,13 +974,49 @@ function BaseGame.chooseSetupCard(player_count)
         }
     }
 
+    local five_player_setup_cards = {
+        {
+            name = "FRONTIERS",
+            guid = Global.getVar("frontiers_5P_GUID"),
+            out_of_play_clusters = {},
+            player_colors = 5
+        }, {
+            name = "EMPIRES",
+            guid = Global.getVar("empires_5P_GUID"),
+            out_of_play_clusters = {},
+            player_colors = 5
+        }, {
+            name = "MIX UP 1",
+            guid = Global.getVar("mix_up_1_5P_GUID"),
+            out_of_play_clusters = {},
+            player_colors = 5
+        }, {
+            name = "MIX UP 2",
+            guid = Global.getVar("mix_up_2_5P_GUID"),
+            out_of_play_clusters = {},
+            player_colors = 5
+        },{
+            name = "EXTENSION",
+            guid = Global.getVar("extension_5P_GUID"),
+            out_of_play_clusters = {},
+            player_colors = 5
+        }
+    }
+
     local setup_cards = {
         two_player_setup_cards, three_player_setup_cards,
-        four_player_setup_cards
+        four_player_setup_cards, five_player_setup_cards
     }
 
     local chosen_setup_card = setup_cards[player_count - 1][math.random(
         #setup_cards[player_count - 1])]
+
+    -- If a chosen 5P setup card has no GUID configured, fall back to a 4P card
+    if player_count == 5 and not chosen_setup_card.guid then
+        LOG.WARN("5P setup card '" .. tostring(chosen_setup_card.name) .. "' has no GUID; falling back to a 4P setup card")
+        chosen_setup_card = four_player_setup_cards[math.random(#four_player_setup_cards)]
+        chosen_setup_card.out_of_play_clusters = {}
+    end
 
     local setup_deck = getObjectFromGUID(Global.getVar("setup_deck_GUID"))
     setup_deck.takeObject({

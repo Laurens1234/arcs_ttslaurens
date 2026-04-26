@@ -83,6 +83,32 @@ local player_pieces = {
         area_zone = "ee4b6e",
         hand_zone = "c9dd8d"
     },
+    ["Pink"] = {
+        components = {
+            board = "57b06a",
+            score_board = "5f8f5b",
+            ships = "2da385",
+            mini_ships = "94823f",
+            starports = "7e625d",
+            agents = "791097",
+            mini_agents = "bb9a25",
+            cities = {"f3da7f", "5e753e", "79b799", "fad0f1", "45c804"},
+            power = "40f97a",
+            objective = "3c2ffc",
+            trophy_wall1 = "2ffd2c",
+            trophy_wall2 = "187183",
+            trophy_wall3 = "924ecc",
+            trophy_captive_wall = "2ff29e",
+            captive_wall1 = "be7e33",
+            captive_wall2 = "685f39",
+            captive_wall3 = "041961"
+        },
+        initiative_zone = "cdc545",
+        trophies_zone = "3085c9",
+        captives_zone = "fe0b0d",
+        area_zone = "ee4b6e",
+        hand_zone = "c9dd8d"
+    },
     ["Red"] = {
         components = {
             board = "c0c8a1",
@@ -155,7 +181,7 @@ ArcsPlayer = {
 
 function ArcsPlayer.components_visibility(color, is_visible, is_campaign)
     local visibility = is_visible and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                           {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
     for key, id in pairs(player_pieces[color]["components"]) do
         if (key == "cities") then
             ArcsPlayer._show_cities(color, is_visible)
@@ -176,7 +202,7 @@ end
 
 function ArcsPlayer._show_cities(color, is_visible)
     local visibility = is_visible and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                           {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
 
     for _, id in pairs(player_pieces[color].components.cities) do
         local obj = getObjectFromGUID(id)
@@ -215,6 +241,9 @@ function ArcsPlayer:setup(is_campaign)
         y_pos = 2
         x_pos = -13.92
     elseif (self.color == "Yellow") then
+        y_pos = 2
+        x_pos = -13.26
+    elseif (self.color == "Pink") then
         y_pos = 2
         x_pos = -13.26
     end

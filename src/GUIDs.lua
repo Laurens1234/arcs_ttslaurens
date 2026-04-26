@@ -43,6 +43,13 @@ mix_up_1_4P_GUID = "646d5a"
 mix_up_2_4P_GUID = "53671b"
 mix_up_3_4P_GUID = "595066"
 
+-- 5P setup deck (added)
+frontiers_5P_GUID = "2cd1ed"
+mix_up_1_5P_GUID = "b89490"
+mix_up_2_5P_GUID = "e0ea87"
+empires_5P_GUID = "f576ec"
+extension_5P_GUID = "7d62f5"
+
 -- 3P setup deck
 frontiers_3P_GUID = "abc2f1"
 core_conflict_3P_GUID = "6ee717"
@@ -138,7 +145,22 @@ player_pieces_GUIDs = {
         trophies_zone = "3085c9",
         captives_zone = "fe0b0d",
         area_zone = "ee4b6e"
+    },
+    ["Pink"] = {
+        player_board = "57b06a",
+        resource = {"", ""},
+        ships = "8c5c67",
+        mini_ships = "d623c4",
+        starports = "ab5d17",
+        agents = "673d59",
+        mini_agents = "1ab7b7",
+        cities = {"15943d", "d20e60", "98da52", "bc54f0", "bc2d71"},
+        initiative_zone = "fefc45",
+        trophies_zone = "f57ed0",
+        captives_zone = "755484",
+        area_zone = "33c95d"
     }
+
 }
 
 -- Cluster GUIDs

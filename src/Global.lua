@@ -3,7 +3,7 @@ local version = "1.0"
 
 require("src/GUIDs")
 
-available_colors = {"White", "Yellow", "Red", "Teal"}
+available_colors = {"White", "Yellow", "Red", "Teal", "Pink"}
 
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
@@ -27,85 +27,85 @@ leader_draft_count = nil
 lore_draft_count = nil
 
 oop_components = {
-    {
-        Sector = {
-            pos = {-0.16, 0.97, -1.02},
-            rot = {0, 180, -0.01},
-            scale = {2.48, 1, 2.48},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769502/1D85B9468BB538D788FCF7576A05606918CD0DD4/"
-        },
-        Gate = {
-            pos = {-0.04, 0.97, -0.63},
-            rot = {0, 189.24, -0.01},
-            scale = {0.71, 1, 0.71},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769214/A4AD66554742C2FFA93612948C38641B813947FB/"
-        }
-    }, {
-        Sector = {
-            pos = {-0.50, 0.97, -0.64},
-            rot = {0, 180, -0.01},
-            scale = {2.48, 1, 2.48},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769605/A40A0C79B27F1F1C45E0570E46BA8A7B253F356E/"
-        },
-        Gate = {
-            pos = {-0.23, 0.97, -0.21},
-            rot = {0, 252.52, 0},
-            scale = {0.44, 1, 0.44},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769422/DFF68E0F82851F1AAE746B676B40470DDF3B2FBC/"
-        }
-    }, {
-        Sector = {
-            pos = {-0.45, 0.97, 0.73},
-            rot = {0, 179.99, -0.01},
-            scale = {2.36, 1, 2.36},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769710/C408A11914F7F4DEA83686851730DDF10A8BD5D4/"
-        },
-        Gate = {
-            pos = {-0.2, 0.97, 0.28},
-            rot = {0, 305.16, 0},
-            scale = {0.44, 1, 0.44},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769422/DFF68E0F82851F1AAE746B676B40470DDF3B2FBC/"
-        }
-    }, {
-        Sector = {
-            pos = {0.17, 0.97, 0.90},
-            rot = {0, 179, -0.01},
-            scale = {2.54, 1, 2.54},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769816/0AA42154550040133E7D6740F85CD487D5F6967B/"
-        },
-        Gate = {
-            pos = {0.05, 0.97, 0.52},
-            rot = {-0.01, 12.02, 0},
-            scale = {0.71, 1, 0.71},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769214/A4AD66554742C2FFA93612948C38641B813947FB/"
-        }
-    }, {
-        Sector = {
-            pos = {0.5, 0.97, 0.55},
-            rot = {0, 179.99, -0.01},
-            scale = {2.48, 1, 2.48},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445770194/8600421030523070B8E2F05CECC3281DF24989AC/"
-        },
-        Gate = {
-            pos = {0.24, 0.97, 0.1},
-            rot = {-0.01, 72.87, -0.01},
-            scale = {0.44, 1, 0.44},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769422/DFF68E0F82851F1AAE746B676B40470DDF3B2FBC/"
-        }
-    }, {
-        Sector = {
-            pos = {0.46, 0.97, -0.82},
-            rot = {0, 180.00, -0.01},
-            scale = {2.29, 1, 2.29},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445770362/76677A077FC1D6CD3672DCC036646ABFD2881F62/"
-        },
-        Gate = {
-            pos = {0.2, 0.97, -0.39},
-            rot = {-0.01, 125.02, -0.01},
-            scale = {0.44, 1, 0.44},
-            img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769422/DFF68E0F82851F1AAE746B676B40470DDF3B2FBC/"
-        }
+  {
+    Sector = {
+      pos = {-0.16, 0.97, -1.02},
+      rot = {0, 180, -0.01},
+      scale = {2.48, 1, 2.48},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769502/1D85B9468BB538D788FCF7576A05606918CD0DD4/"
+    },
+    Gate = {
+      pos = {-0.04, 0.97, -0.63},
+      rot = {0, 189.24, -0.01},
+      scale = {0.71, 1, 0.71},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769214/A4AD66554742C2FFA93612948C38641B813947FB/"
     }
+  }, {
+    Sector = {
+      pos = {-0.50, 0.97, -0.64},
+      rot = {0, 180, -0.01},
+      scale = {2.48, 1, 2.48},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769605/A40A0C79B27F1F1C45E0570E46BA8A7B253F356E/"
+    },
+    Gate = {
+      pos = {-0.23, 0.97, -0.21},
+      rot = {0, 252.52, 0},
+      scale = {0.44, 1, 0.44},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769422/DFF68E0F82851F1AAE746B676B40470DDF3B2FBC/"
+    }
+  }, {
+    Sector = {
+      pos = {-0.45, 0.97, 0.73},
+      rot = {0, 179.99, -0.01},
+      scale = {2.36, 1, 2.36},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769710/C408A11914F7F4DEA83686851730DDF10A8BD5D4/"
+    },
+    Gate = {
+      pos = {-0.2, 0.97, 0.28},
+      rot = {0, 305.16, 0},
+      scale = {0.44, 1, 0.44},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769422/DFF68E0F82851F1AAE746B676B40470DDF3B2FBC/"
+    }
+  }, {
+    Sector = {
+      pos = {0.17, 0.97, 0.90},
+      rot = {0, 179, -0.01},
+      scale = {2.54, 1, 2.54},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769816/0AA42154550040133E7D6740F85CD487D5F6967B/"
+    },
+    Gate = {
+      pos = {0.05, 0.97, 0.52},
+      rot = {-0.01, 12.02, 0},
+      scale = {0.71, 1, 0.71},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769214/A4AD66554742C2FFA93612948C38641B813947FB/"
+    }
+  }, {
+    Sector = {
+      pos = {0.5, 0.97, 0.55},
+      rot = {0, 179.99, -0.01},
+      scale = {2.48, 1, 2.48},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445770194/8600421030523070B8E2F05CECC3281DF24989AC/"
+    },
+    Gate = {
+      pos = {0.24, 0.97, 0.1},
+      rot = {-0.01, 72.87, -0.01},
+      scale = {0.44, 1, 0.44},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769422/DFF68E0F82851F1AAE746B676B40470DDF3B2FBC/"
+    }
+  }, {
+    Sector = {
+      pos = {0.46, 0.97, -0.82},
+      rot = {0, 180.00, -0.01},
+      scale = {2.29, 1, 2.29},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445770362/76677A077FC1D6CD3672DCC036646ABFD2881F62/"
+    },
+    Gate = {
+      pos = {0.2, 0.97, -0.39},
+      rot = {-0.01, 125.02, -0.01},
+      scale = {0.44, 1, 0.44},
+      img = "http://cloud-3.steamusercontent.com/ugc/2313225941445769422/DFF68E0F82851F1AAE746B676B40470DDF3B2FBC/"
+    }
+  }
 }
 
 initiative_player_position = {-2, 0, 0}
@@ -533,9 +533,9 @@ function getOrderedPlayers()
         broadcastToAll("\nDebugging enabled for " .. debug_player_count ..
                            " players.")
         if (debug_player_count > 3) then
-            seated_players = {"White", "Yellow", "Teal", "Red"}
+          seated_players = {"White", "Yellow", "Teal", "Red", "Pink"}
         else
-            local all_colors = {"White", "Yellow", "Teal", "Red"}
+          local all_colors = {"White", "Yellow", "Teal", "Red", "Pink"}
             -- remove seated players from all_colors
             for _, seated in ipairs(seated_players) do
                 for i, all in ipairs(all_colors) do
@@ -555,8 +555,8 @@ function getOrderedPlayers()
     end
 
     local player_count = #seated_players
-    if (player_count > 4 or player_count < 2) then
-        msg = "This multiplayer game will only start with 2-4 players. " ..
+    if (player_count > 5 or player_count < 2) then
+      msg = "This multiplayer game will only start with 2-5 players. " ..
         "\nTo explore the mod solo, return to main menu, create the game as 'hotseat', " ..
         "load the mod from the Games menu, then pick player colors last."
         broadcastToAll(msg, {
@@ -567,7 +567,7 @@ function getOrderedPlayers()
         return {""}
     end
 
-    local clockwise_order = {"White", "Yellow", "Teal", "Red"}
+    local clockwise_order = {"White", "Yellow", "Teal", "Red", "Pink"}
     local ordered_players = {}
     local start_index = math.random(player_count)
 
@@ -1152,9 +1152,154 @@ starting_locations = {
                 system = "gate"
             }
         }
+    },
+  -- Placeholder 5P starting locations (user will update per-setup)
+  [frontiers_5P_GUID] = {
+    [1] = {
+      A = {
+        cluster = 1,
+        system = "c"
+      },
+      B = {
+        cluster = 3,
+        system = "b"
+      },
+      C = {
+        cluster = 2,
+        system = "gate"
+      }
+    },
+    [2] = {
+      A = { cluster = 2, system = "c" },
+      B = { cluster = 6, system = "c" },
+      C = { cluster = 3, systema = "gate" }
+    },
+    [3] = {
+      A = { cluster = 4, system = "b" },
+      B = { cluster = 2, system = "a" },
+      C = { cluster = 6, system = "gate" }
+    },
+    [4] = {
+      A = { cluster = 1, system = "a" },
+      B = { cluster = 6, system = "a" },
+      C = { cluster = 4, system = "gate" }
+    },
+    [5] = {
+      A = { cluster = 5, system = "c" },
+      B = { cluster = 4, system = "c" },
+      C = { cluster = 1, system = "gate" }
     }
+  },
+  [empires_5P_GUID] = {
+    [1] = {
+      A = { cluster = 1, system = "c" },
+      B = { cluster = 1, system = "b" },
+      C = { cluster = 6, system = "gate" }
+    },
+    [2] = {
+      A = { cluster = 2, system = "c" },
+      B = { cluster = 2, system = "b" },
+      C = { cluster = 6, system = "gate" }
+    },
+    [3] = {
+      A = { cluster = 3, system = "c" },
+      B = { cluster = 3, system = "b" },
+      C = { cluster = 6, system = "gate" }
+    },
+    [4] = {
+      A = { cluster = 4, system = "a" },
+      B = { cluster = 4, system = "c" },
+      C = { cluster = 6, system = "gate" }
+    },
+    [5] = {
+      A = { cluster = 5, system = "a" },
+      B = { cluster = 5, system = "b" },
+      C = { cluster = 6, system = "gate" }
+    }
+  },
+  [mix_up_1_5P_GUID] = {
+    [1] = {
+      A = { cluster = 6, system = "c" },
+      B = { cluster = 4, system = "a" },
+      C = { cluster = 1, system = "gate" }
+    },
+    [2] = {
+      A = { cluster = 4, system = "c" },
+      B = { cluster = 5, system = "c" },
+      C = { cluster = 3, system = "gate" }
+    },
+    [3] = {
+      A = { cluster = 5, system = "a" },
+      B = { cluster = 3, system = "c" },
+      C = { cluster = 4, system = "gate" }
+    },
+    [4] = {
+      A = { cluster = 6, system = "a" },
+      B = { cluster = 1, system = "a" },
+      C = { cluster = 5, system = "gate" }
+    },
+    [5] = {
+      A = { cluster = 1, system = "c" },
+      B = { cluster = 3, system = "b" },
+      C = { cluster = 6, system = "gate" }
+    }
+  },
+  [mix_up_2_5P_GUID] = {
+    [1] = {
+      A = { cluster = 5, system = "c" },
+      B = { cluster = 3, system = "a" },
+      C = { cluster = 2, system = "gate" }
+    },
+    [2] = {
+      A = { cluster = 3, system = "c" },
+      B = { cluster = 5, system = "b" },
+      C = { cluster = 2, system = "gate" }
+    },
+    [3] = {
+      A = { cluster = 4, system = "c" },
+      B = { cluster = 1, system = "c" },
+      C = { cluster = 3, system = "gate" }
+    },
+    [4] = {
+      A = { cluster = 1, system = "a" },
+      B = { cluster = 2, system = "a" },
+      C = { cluster = 5, system = "gate" }
+    },
+    [5] = {
+      A = { cluster = 2, system = "b" },
+      B = { cluster = 6, system = "b" },
+      C = { cluster = 4, system = "gate" }
+    }
+  },
+  [extension_5P_GUID] = {
+    [1] = {
+      A = { cluster = 2, system = "c" },
+      B = { cluster = 3, system = "b" },
+      C = { cluster = 2, system = "gate" }
+    },
+    [2] = {
+      A = { cluster = 1, system = "c" },
+      B = { cluster = 2, system = "a" },
+      C = { cluster = 1, system = "gate" }
+    },
+    [3] = {
+      A = { cluster = 3, system = "c" },
+      B = { cluster = 5, system = "a" },
+      C = { cluster = 3, system = "gate" }
+    },
+    [4] = {
+      A = { cluster = 5, system = "c" },
+      B = { cluster = 6, system = "c" },
+      C = { cluster = 5, system = "gate" }
+    },
+    [5] = {
+      A = { cluster = 6, system = "b" },
+      B = { cluster = 1, system = "b" },
+      C = { cluster = 6, system = "gate" }
+    }
+  }
 }
-
+  
 starting_pieces = {
     Default = {
         A = {
@@ -1469,7 +1614,7 @@ function setup_custom_game()
 
     BaseGame.destroy_grey_setup_menu_objects()
 
-    for _, v in ipairs({"Red", "White", "Yellow", "Teal"}) do
+    for _, v in ipairs({"Red", "White", "Yellow", "Teal", "Pink"}) do
         local arcs_player = ArcsPlayer:new{
             color = v
         }
@@ -1489,7 +1634,7 @@ function setup_custom_game()
         leaders_and_lore_expansion = true,
         with_faceup_discard = true,
         with_miniatures = with_miniatures,
-        players = {"Red", "White", "Yellow", "Teal"}
+        players = {"Red", "White", "Yellow", "Teal", "Pink"}
     }
     set_game_in_progress(p)
 
@@ -1587,7 +1732,7 @@ function onLoad(script_state)
     if (reach_board.getDescription() == "in progress") then
         broadcastToAll("Loading game in progress")
 
-        for _, v in ipairs({"Red", "White", "Yellow", "Teal"}) do
+        for _, v in ipairs({"Red", "White", "Yellow", "Teal", "Pink"}) do
             local player_board = getObjectFromGUID(
                 player_pieces_GUIDs[v].player_board)
             if (player_board.getDescription() == "active") then
@@ -1599,7 +1744,7 @@ function onLoad(script_state)
         end
 
         -- Ensure player boards for colors not active remain hidden
-        local all_colors = {"Red", "White", "Yellow", "Teal"}
+        local all_colors = {"Red", "White", "Yellow", "Teal", "Pink"}
         for _, col in ipairs(all_colors) do
           local pb = getObjectFromGUID(player_pieces_GUIDs[col].player_board)
           if pb then
