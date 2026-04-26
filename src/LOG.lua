@@ -1,5 +1,5 @@
 local LOG = {
-    logLevel = 3 --remember to set to 4 before uploading
+    logLevel = 2 --remember to set to 4 before uploading
 }
 
 function LOG.TRACE(message)

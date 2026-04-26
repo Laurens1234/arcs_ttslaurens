@@ -442,9 +442,11 @@ function onObjectNumberTyped(number_object, player_color, number_typed)
                 },
                 ["Red"] = {
                     hand_zone = "54730a"
+                },
+                ["Pink"] = {
+                    hand_zone = "965437"
                 }
             }
-
             local hand_zone_guid = player_pieces[player_color].hand_zone
             local hand_zone = getObjectFromGUID(hand_zone_guid)
             local hand_pos = hand_zone.getPosition()
@@ -495,7 +497,7 @@ function tryObjectEnterContainer(container, object)
   -- For locked bags, require at least one matching tag (preserve original behavior)
   for _, tag in ipairs(container.getTags()) do
     if tag == "TealPiece" or tag == "YellowPiece" or tag == "RedPiece" or tag ==
-      "WhitePiece" or tag == "lock" then
+      "WhitePiece" or tag == "lock" then -- adding PinkPiece here stop all bags from working idk why
       goto continue
     end
 
@@ -1153,151 +1155,142 @@ starting_locations = {
             }
         }
     },
-  -- Placeholder 5P starting locations (user will update per-setup)
-  [frontiers_5P_GUID] = {
-    [1] = {
-      A = {
-        cluster = 1,
-        system = "c"
+    -- 5P starting locations
+    [frontiers_5P_GUID] = {
+      [1] = {
+        A = {cluster = 1, system = "c"},
+        B = {cluster = 3, system = "b"}, 
+        C = {cluster = 2, system = "gate"}
       },
-      B = {
-        cluster = 3,
-        system = "b"
+      [2] = {
+        A = { cluster = 2, system = "c" },
+        B = { cluster = 6, system = "c" },
+        C = { cluster = 3, system = "gate" }
       },
-      C = {
-        cluster = 2,
-        system = "gate"
+      [3] = {
+        A = { cluster = 4, system = "b" },
+        B = { cluster = 2, system = "a" },
+        C = { cluster = 6, system = "gate" }
+      },
+      [4] = {
+        A = { cluster = 1, system = "a" },
+        B = { cluster = 6, system = "a" },
+        C = { cluster = 4, system = "gate" }
+      },
+      [5] = {
+        A = { cluster = 5, system = "c" },
+        B = { cluster = 4, system = "c" },
+        C = { cluster = 1, system = "gate" }
       }
     },
-    [2] = {
-      A = { cluster = 2, system = "c" },
-      B = { cluster = 6, system = "c" },
-      C = { cluster = 3, systema = "gate" }
+    [empires_5P_GUID] = {
+      [1] = {
+        A = { cluster = 1, system = "c" },
+        B = { cluster = 1, system = "b" },
+        C = { cluster = 6, system = "gate" }
+      },
+      [2] = {
+        A = { cluster = 2, system = "c" },
+        B = { cluster = 2, system = "b" },
+        C = { cluster = 6, system = "gate" }
+      },
+      [3] = {
+        A = { cluster = 3, system = "c" },
+        B = { cluster = 3, system = "b" },
+        C = { cluster = 6, system = "gate" }
+      },
+      [4] = {
+        A = { cluster = 4, system = "a" },
+        B = { cluster = 4, system = "c" },
+        C = { cluster = 6, system = "gate" }
+      },
+      [5] = {
+        A = { cluster = 5, system = "a" },
+        B = { cluster = 5, system = "b" },
+        C = { cluster = 6, system = "gate" }
+      }
     },
-    [3] = {
-      A = { cluster = 4, system = "b" },
-      B = { cluster = 2, system = "a" },
-      C = { cluster = 6, system = "gate" }
+    [mix_up_1_5P_GUID] = {
+      [1] = {
+        A = { cluster = 6, system = "c" },
+        B = { cluster = 4, system = "a" },
+        C = { cluster = 1, system = "gate" }
+      },
+      [2] = {
+        A = { cluster = 4, system = "c" },
+        B = { cluster = 5, system = "c" },
+        C = { cluster = 3, system = "gate" }
+      },
+      [3] = {
+        A = { cluster = 5, system = "a" },
+        B = { cluster = 3, system = "c" },
+        C = { cluster = 4, system = "gate" }
+      },
+      [4] = {
+        A = { cluster = 6, system = "a" },
+        B = { cluster = 1, system = "a" },
+        C = { cluster = 5, system = "gate" }
+      },
+      [5] = {
+        A = { cluster = 1, system = "c" },
+        B = { cluster = 3, system = "b" },
+        C = { cluster = 6, system = "gate" }
+      }
     },
-    [4] = {
-      A = { cluster = 1, system = "a" },
-      B = { cluster = 6, system = "a" },
-      C = { cluster = 4, system = "gate" }
+    [mix_up_2_5P_GUID] = {
+      [1] = {
+        A = { cluster = 5, system = "c" },
+        B = { cluster = 3, system = "a" },
+        C = { cluster = 2, system = "gate" }
+      },
+      [2] = {
+        A = { cluster = 3, system = "c" },
+        B = { cluster = 5, system = "b" },
+        C = { cluster = 2, system = "gate" }
+      },
+      [3] = {
+        A = { cluster = 4, system = "c" },
+        B = { cluster = 1, system = "c" },
+        C = { cluster = 3, system = "gate" }
+      },
+      [4] = {
+        A = { cluster = 1, system = "a" },
+        B = { cluster = 2, system = "a" },
+        C = { cluster = 5, system = "gate" }
+      },
+      [5] = {
+        A = { cluster = 2, system = "b" },
+        B = { cluster = 6, system = "b" },
+        C = { cluster = 4, system = "gate" }
+      }
     },
-    [5] = {
-      A = { cluster = 5, system = "c" },
-      B = { cluster = 4, system = "c" },
-      C = { cluster = 1, system = "gate" }
+    [extension_5P_GUID] = {
+      [1] = {
+        A = { cluster = 2, system = "c" },
+        B = { cluster = 3, system = "b" },
+        C = { cluster = 2, system = "gate" }
+      },
+      [2] = {
+        A = { cluster = 1, system = "c" },
+        B = { cluster = 2, system = "a" },
+        C = { cluster = 1, system = "gate" }
+      },
+      [3] = {
+        A = { cluster = 3, system = "c" },
+        B = { cluster = 5, system = "a" },
+        C = { cluster = 3, system = "gate" }
+      },
+      [4] = {
+        A = { cluster = 5, system = "c" },
+        B = { cluster = 6, system = "c" },
+        C = { cluster = 5, system = "gate" }
+      },
+      [5] = {
+        A = { cluster = 6, system = "b" },
+        B = { cluster = 1, system = "b" },
+        C = { cluster = 6, system = "gate" }
+      }
     }
-  },
-  [empires_5P_GUID] = {
-    [1] = {
-      A = { cluster = 1, system = "c" },
-      B = { cluster = 1, system = "b" },
-      C = { cluster = 6, system = "gate" }
-    },
-    [2] = {
-      A = { cluster = 2, system = "c" },
-      B = { cluster = 2, system = "b" },
-      C = { cluster = 6, system = "gate" }
-    },
-    [3] = {
-      A = { cluster = 3, system = "c" },
-      B = { cluster = 3, system = "b" },
-      C = { cluster = 6, system = "gate" }
-    },
-    [4] = {
-      A = { cluster = 4, system = "a" },
-      B = { cluster = 4, system = "c" },
-      C = { cluster = 6, system = "gate" }
-    },
-    [5] = {
-      A = { cluster = 5, system = "a" },
-      B = { cluster = 5, system = "b" },
-      C = { cluster = 6, system = "gate" }
-    }
-  },
-  [mix_up_1_5P_GUID] = {
-    [1] = {
-      A = { cluster = 6, system = "c" },
-      B = { cluster = 4, system = "a" },
-      C = { cluster = 1, system = "gate" }
-    },
-    [2] = {
-      A = { cluster = 4, system = "c" },
-      B = { cluster = 5, system = "c" },
-      C = { cluster = 3, system = "gate" }
-    },
-    [3] = {
-      A = { cluster = 5, system = "a" },
-      B = { cluster = 3, system = "c" },
-      C = { cluster = 4, system = "gate" }
-    },
-    [4] = {
-      A = { cluster = 6, system = "a" },
-      B = { cluster = 1, system = "a" },
-      C = { cluster = 5, system = "gate" }
-    },
-    [5] = {
-      A = { cluster = 1, system = "c" },
-      B = { cluster = 3, system = "b" },
-      C = { cluster = 6, system = "gate" }
-    }
-  },
-  [mix_up_2_5P_GUID] = {
-    [1] = {
-      A = { cluster = 5, system = "c" },
-      B = { cluster = 3, system = "a" },
-      C = { cluster = 2, system = "gate" }
-    },
-    [2] = {
-      A = { cluster = 3, system = "c" },
-      B = { cluster = 5, system = "b" },
-      C = { cluster = 2, system = "gate" }
-    },
-    [3] = {
-      A = { cluster = 4, system = "c" },
-      B = { cluster = 1, system = "c" },
-      C = { cluster = 3, system = "gate" }
-    },
-    [4] = {
-      A = { cluster = 1, system = "a" },
-      B = { cluster = 2, system = "a" },
-      C = { cluster = 5, system = "gate" }
-    },
-    [5] = {
-      A = { cluster = 2, system = "b" },
-      B = { cluster = 6, system = "b" },
-      C = { cluster = 4, system = "gate" }
-    }
-  },
-  [extension_5P_GUID] = {
-    [1] = {
-      A = { cluster = 2, system = "c" },
-      B = { cluster = 3, system = "b" },
-      C = { cluster = 2, system = "gate" }
-    },
-    [2] = {
-      A = { cluster = 1, system = "c" },
-      B = { cluster = 2, system = "a" },
-      C = { cluster = 1, system = "gate" }
-    },
-    [3] = {
-      A = { cluster = 3, system = "c" },
-      B = { cluster = 5, system = "a" },
-      C = { cluster = 3, system = "gate" }
-    },
-    [4] = {
-      A = { cluster = 5, system = "c" },
-      B = { cluster = 6, system = "c" },
-      C = { cluster = 5, system = "gate" }
-    },
-    [5] = {
-      A = { cluster = 6, system = "b" },
-      B = { cluster = 1, system = "b" },
-      C = { cluster = 6, system = "gate" }
-    }
-  }
 }
   
 starting_pieces = {

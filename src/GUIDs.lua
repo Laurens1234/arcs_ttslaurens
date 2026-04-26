@@ -148,7 +148,7 @@ player_pieces_GUIDs = {
     },
     ["Pink"] = {
         player_board = "57b06a",
-        resource = {"", ""},
+        resource = {"15943d", "d20e60"},
         ships = "8c5c67",
         mini_ships = "d623c4",
         starports = "ab5d17",

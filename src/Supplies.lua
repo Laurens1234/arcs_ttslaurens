@@ -112,6 +112,39 @@ local all_supplies = {
         set = player_pieces_GUIDs["Red"]["cities"],
         pos = city_row
     },
+    -- all pinks
+    -- Player Agents
+    ["Pink Agent"] = {
+        bag = player_pieces_GUIDs["Pink"]["agents"],
+        mini_bag = player_pieces_GUIDs["Pink"]["mini_agents"]
+    },
+
+    -- Player Fresh Ships
+    ["Pink Ship (Fresh)"] = {
+        bag = player_pieces_GUIDs["Pink"]["ships"],
+        mini_bag = player_pieces_GUIDs["Pink"]["mini_ships"]
+    },
+
+    -- Player Damaged Ships
+    ["Pink Ship (Damaged)"] = {
+        bag = player_pieces_GUIDs["Pink"]["ships"],
+        mini_bag = player_pieces_GUIDs["Pink"]["mini_ships"],
+        state = 1
+    },
+
+    -- Player Starport
+    ["Pink Starport"] = {
+        bag = player_pieces_GUIDs["Pink"]["starports"],
+        face_up = true
+    },
+
+    -- Player Cities
+    ["Pink City"] = {
+        origin = player_pieces_GUIDs["Pink"]["player_board"],
+        face_up = true,
+        set = player_pieces_GUIDs["Pink"]["cities"],
+        pos = city_row
+    },
 
     -- Resources
     ["Psionic"] = {
