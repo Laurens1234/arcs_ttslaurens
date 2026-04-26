@@ -267,12 +267,15 @@ function ActionCards.get_info(card)
         return
     end
 
-    local card_type = string.sub(card.getDescription(), 1, -3)
-    local card_number = tonumber(string.sub(card.getDescription(), -2, -1))
+    local desc = card.getDescription()
+    local card_type = string.sub(desc, 1, -3)
+    local card_number = tonumber(string.sub(desc, -2, -1))
 
-    if (card_type == "Faithful") then
-        card_type = card.getRotation().y < 180 and "Faithful Zeal" or
-                        "Faithful Wisdom"
+    if string.find(desc, "Mandate") then
+        card_type = desc
+        card_number = 0
+    elseif (card_type == "Faithful") then
+        card_type = card.getRotation().y < 180 and "Faithful Zeal" or "Faithful Wisdom"
     end
 
     return {
@@ -325,27 +328,54 @@ function ActionCards.get_surpassing_card()
     local max_surpassing_number = 0
     local played_zone = getObjectFromGUID(action_card_zone_GUID)
 
+    LOG.DEBUG("get_surpassing_card: lead card is " .. tostring(lead.type) .. " " .. tostring(lead.number) .. " (guid=" .. tostring(lead.guid) .. ")")
+    local found_mandate_surpass = false
     for _, v in ipairs(played_zone.getObjects()) do
         if (v.guid == lead.guid) then
+            LOG.DEBUG("Skipping lead card itself (guid=" .. tostring(v.guid) .. ")")
             goto continue
         end
 
         if v.getName() ~= "Action Card" then
+            LOG.DEBUG("Skipping non-action card: " .. tostring(v.getName()))
             goto continue
         end
 
         do -- avoid error with goto jumping into surpassing_card scope
             local card = ActionCards.get_info(v)
             if (card) then
-                LOG.DEBUG("card: " .. card.type .. " " .. card.number)
+                LOG.DEBUG("Checking card: " .. tostring(card.type) .. " " .. tostring(card.number) .. " (guid=" .. tostring(card.guid) .. ")")
+            else
+                LOG.DEBUG("get_info returned nil for card with guid " .. tostring(v.guid))
             end
-            if (card and lead.type == card.type and lead.number < card.number and
-                card.number > max_surpassing_number) then
-                max_surpassing_number = card.number
-                surpassing_card = card
+            if card then
+                if lead.number == 0 then
+                    -- Mandate lead: any card can surpass, highest number wins
+                    LOG.DEBUG("Mandate lead: comparing card.number=" .. tostring(card.number) .. " to max_surpassing_number=" .. tostring(max_surpassing_number))
+                    if card.number > max_surpassing_number then
+                        LOG.DEBUG("Mandate surpass: setting surpassing_card to " .. tostring(card.type) .. " " .. tostring(card.number) .. " (guid=" .. tostring(card.guid) .. ")")
+                        max_surpassing_number = card.number
+                        surpassing_card = card
+                        found_mandate_surpass = false
+                    elseif card.number == 0 and not found_mandate_surpass then
+                        -- First non-lead Mandate card found: assign as surpassing_card
+                        LOG.DEBUG("Mandate tie-break: first non-lead Mandate card found, setting surpassing_card to " .. tostring(card.type) .. " (guid=" .. tostring(card.guid) .. ")")
+                        surpassing_card = card
+                        found_mandate_surpass = true
+                    end
+                elseif (lead.type == card.type and lead.number < card.number and card.number > max_surpassing_number) then
+                    LOG.DEBUG("Suit match surpass: setting surpassing_card to " .. tostring(card.type) .. " " .. tostring(card.number) .. " (guid=" .. tostring(card.guid) .. ")")
+                    max_surpassing_number = card.number
+                    surpassing_card = card
+                end
             end
         end
         ::continue::
+    end
+    if surpassing_card then
+        LOG.INFO("Final surpassing card: " .. tostring(surpassing_card.type) .. " " .. tostring(surpassing_card.number) .. " (guid=" .. tostring(surpassing_card.guid) .. ")")
+    else
+        LOG.INFO("No surpassing card found.")
     end
 
     if (surpassing_card) then

@@ -217,7 +217,7 @@ function isObjectInZone(object, zone)
     return false
 end
 
-function onObjectDrop(player_color, object)
+function onObjectDrop(player_color, object) -- this is being called from orig later to fix other edifice tokens spawn
     local object_name = object.getName()
 
     -- update power
@@ -254,7 +254,8 @@ function onObjectDrop(player_color, object)
                 broadcastToAll(player.color .. " is seizing the initiative",
                     player.color)
             elseif not object.is_face_down and played_zone_card then
-                player:set_last_played_action_card(object.getDescription())
+              local ActionCards = require and require("src/ActionCards") or ActionCards
+              player:set_last_played_action_card(ActionCards.get_info(object))
             end
 
         end, function()
@@ -4263,12 +4264,23 @@ _G.place_lost_vaults_marker_for_card = function(card)
     end
 end
 
-_G.onObjectFlip = function(player_color, obj)
+
+-- Chain custom logic with any existing handlers for onObjectDrop/onObjectFlip
+local orig_onObjectDrop = onObjectDrop
+local orig_onObjectFlip = onObjectFlip
+
+function onObjectDrop(player_color, obj)
+  if orig_onObjectDrop and orig_onObjectDrop ~= onObjectDrop then
+    pcall(function() orig_onObjectDrop(player_color, obj) end)
+  end
   pcall(function() _G.place_lost_vaults_marker_for_card(obj) end)
   pcall(function() _G.place_veil_on_loom(obj) end)
 end
 
-_G.onObjectDrop = function(player_color, obj)
+function onObjectFlip(player_color, obj)
+  if orig_onObjectFlip and orig_onObjectFlip ~= onObjectFlip then
+    pcall(function() orig_onObjectFlip(player_color, obj) end)
+  end
   pcall(function() _G.place_lost_vaults_marker_for_card(obj) end)
   pcall(function() _G.place_veil_on_loom(obj) end)
 end

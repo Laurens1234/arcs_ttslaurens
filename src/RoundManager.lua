@@ -50,14 +50,16 @@ function RoundManager.endRound()
             broadcastToAll("No surpassing card, " .. initiative_player ..
                                " keeps the initiative", initiative_player)
         else
-            -- Assign initiative to player with highest surpassing card
+            -- Debug: print all last_action_card values and surpassing card
+            LOG.DEBUG("Surpassing card: type=" .. tostring(surpassing.type) .. ", number=" .. tostring(surpassing.number))
             for _, p in ipairs(all_players) do
                 if not p.last_action_card then
+                    LOG.DEBUG("Player " .. tostring(p.color) .. " has no last_action_card")
                     goto continue
                 end
-
-                if string.find(surpassing.type, p.last_action_card.type) and
-                    p.last_action_card.number == surpassing.number then
+                LOG.DEBUG("Player " .. tostring(p.color) .. " last_action_card: type=" .. tostring(p.last_action_card.type) .. ", number=" .. tostring(p.last_action_card.number))
+                if p.last_action_card.type == surpassing.type and p.last_action_card.number == surpassing.number then
+                    LOG.INFO("Initiative assigned to " .. tostring(p.color) .. " for surpassing card match.")
                     Initiative.unseize()
                     Initiative.take(p.color, true)
                     broadcastToAll(string.format(
@@ -65,7 +67,6 @@ function RoundManager.endRound()
                         p.color, surpassing.type, surpassing.number), p.color)
                     break
                 end
-
                 ::continue::
             end
         end

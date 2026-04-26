@@ -387,7 +387,8 @@ function declare_ambition(obj, player_color)
     local reach_board = getObjectFromGUID(reach_board_GUID)
 
     local this_ambition
-    if (lead_info.real_number == 7 or is_faithful) then
+    local is_mandate = (lead_info.type and string.find(lead_info.type, "Mandate")) or lead_info.number == 0
+    if (lead_info.real_number == 7 or is_faithful or is_mandate) then
         broadcastToAll("" .. player_color ..
                            " is declaring ambition of choice for " .. power,
             player_color)

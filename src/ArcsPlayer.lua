@@ -253,16 +253,11 @@ function ArcsPlayer:setup(is_campaign)
     ArcsPlayer.components_visibility(self.color, true, is_campaign)
 end
 
-function ArcsPlayer:set_last_played_action_card(action_card_description)
-    self.last_action_card = {
-        type = string.sub(action_card_description, 1, -3),
-        number = tonumber(string.sub(action_card_description, -1, -1))
-    }
-
+function ArcsPlayer:set_last_played_action_card(card_info)
+    self.last_action_card = card_info
     if (Global.getVar("is_face_up_discard_active")) then
         local gold_color = {1, 0.7, 0.4}
-        broadcastToAll(self.color .. " played " .. action_card_description,
-            gold_color)
+        broadcastToAll(self.color .. " played " .. (card_info and card_info.type or "") .. " " .. (card_info and tostring(card_info.number) or ""), gold_color)
     end
 end
 
