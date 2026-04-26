@@ -569,7 +569,7 @@ function getOrderedPlayers()
         return {""}
     end
 
-    local clockwise_order = {"White", "Yellow", "Teal", "Red", "Pink"}
+    local clockwise_order = {"White", "Pink", "Yellow", "Teal", "Red"}
     local ordered_players = {}
     local start_index = math.random(player_count)
 
@@ -1649,7 +1649,7 @@ function set_game_in_progress(params)
     local reach_board = getObjectFromGUID(reach_board_GUID)
     reach_board.setDescription("in progress")
 
-    local visibility = {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+    local visibility = {"Red", "White", "Yellow", "Teal", "Black", "Pink", "Grey"}
 
     if (params.with_faceup_discard) then
         ActionCards.faceup_discard_visibility(true)
@@ -1805,7 +1805,7 @@ function onLoad(script_state)
         local face_up_discard_action_deck = getObjectFromGUID(
             face_up_discard_action_deck_GUID)
         face_up_discard_action_deck.setInvisibleTo({
-            "Red", "White", "Yellow", "Teal", "Black", "Grey"
+            "Red", "White", "Yellow", "Pink", "Teal", "Black", "Grey"
         })
         face_up_discard_action_deck.interactable = false
         face_up_discard_action_deck.locked = false -- set this to false otherwise it breaks

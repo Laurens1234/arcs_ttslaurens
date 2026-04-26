@@ -77,9 +77,9 @@ end
 
 function onPinkBoardClick(player, value, id)
     Player[player.color].lookAt({
-        position = {x=0.0, y=1.48, z=16.5},
+        position = {x=36.7, y=1.48, z=-16.5},
         pitch = 80,
-        yaw = 180,
+        yaw = 0,
         distance = 13
     })
 end

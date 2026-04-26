@@ -89,10 +89,10 @@ local leader_setup_markers = {
         D = "http://cloud-3.steamusercontent.com/ugc/2470859798801204273/D14267BB17B5B5F5A0EB5D41DDE2180A8972F7F0/"
     },
     Pink = {
-        A = "http://cloud-3.steamusercontent.com/ugc/2470859798801204323/C2AB80A86A05E6D091EEEFC3BBC37750441C8458/",
-        B = "http://cloud-3.steamusercontent.com/ugc/2470859798801204362/040363BB8DEFF3E79EEF4E9F022346006808DAF1/",
-        C = "http://cloud-3.steamusercontent.com/ugc/2470859798801204408/C404410F6AFD3AA2AA563EF27D796C4E8F872B00/",
-        D = "http://cloud-3.steamusercontent.com/ugc/2470859798801204408/C404410F6AFD3AA2AA563EF27D796C4E8F872B00/"
+        A = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/pink-a.png",
+        B = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/pink-b.png",
+        C = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/pink-c.png",
+        D = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/pink-c.png"
     },
     guids = {}
 }
@@ -228,7 +228,7 @@ end
 
 function BaseGame.four_player_cards_visibility(show)
     local visibility = show and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                           {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
     local obj = getObjectFromGUID(BaseGame.components.action_cards_4p)
     if (obj) then
         obj.setInvisibleTo(visibility)
@@ -241,7 +241,7 @@ end
 
 function BaseGame.base_exclusive_components_visibility(show)
     local visibility = show and {} or
-                           {"Red", "White", "Yellow", "Teal", "Black", "Grey"}
+                           {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
     for _, id in pairs(BaseGame.components.base_exclusive) do
         local obj = getObjectFromGUID(id)
         if (obj) then
@@ -1619,7 +1619,7 @@ function BaseGame.destroy_grey_setup_menu_objects()
 end
 
 function BaseGame.destroy_unused_miniature_supplies()
-    local player_colors = {"White", "Red", "Yellow", "Teal"}
+    local player_colors = {"White", "Red", "Yellow", "Pink", "Teal"}
     for _, color in ipairs(player_colors) do
         local player_pieces_guids = Global.getVar("player_pieces_GUIDs")
         local ship_bag = getObjectFromGUID(player_pieces_guids[color]["mini_ships"])

@@ -152,7 +152,8 @@ function Campaign.setup_regents(players)
         Red = {-16.04, 0.97, 13.03},
         White = {7.61, 0.97, 13.03},
         Yellow = {7.62, 0.97, -12.31},
-        Teal = {-16.0, 0.97, -12.32}
+        Teal = {-16.0, 0.97, -12.32},
+        Pink = {31.24, 0.97, -12.32}
     }
 
     for i, p in ipairs(players) do

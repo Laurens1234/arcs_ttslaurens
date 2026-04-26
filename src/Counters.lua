@@ -96,6 +96,27 @@ local function initializeCounters()
             font_size = 365,
             font_color = {1, 1, 1}
         }, {
+            container_GUID = player_pieces_guids["Pink"]["ships"],
+            position = {0.5, 0.06, 0.03},
+            shadow = {0.03, 0, 0.02},
+            scale = {1, 1, 1},
+            font_size = 365,
+            font_color = {1, 1, 1}
+        }, {
+            container_GUID = player_pieces_guids["Pink"]["agents"],
+            position = {0.5, 0.06, 0.03},
+            shadow = {0.03, 0, 0.02},
+            scale = {1, 1, 1},
+            font_size = 365,
+            font_color = {1, 1, 1}
+        }, {
+            container_GUID = player_pieces_guids["Pink"]["starports"],
+            position = {0.5, 0.06, 0.03},
+            shadow = {0.03, 0, 0.02},
+            scale = {1, 1, 1},
+            font_size = 365,
+            font_color = {1, 1, 1}
+        }, {
             container_GUID = Global.getVar("imperial_ships_GUID"),
             position = {0.5, 0.06, 0.03},
             shadow = {0.03, 0, 0.02},
