@@ -9,6 +9,8 @@ edifice_deck_GUID = "becb7c"
 lost_vaults_marker_bag_GUID = "7f3e2f"
 lost_vaults_rules_GUID = "952d62"
 
+mandate_cards_GUID = "c549b5"
+
 include_fates_GUID = "be0e27"
 action_deck_GUID = "227406"
 action_deck_zone_GUID = "80ed31" -- "9bd42d"

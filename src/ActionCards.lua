@@ -80,15 +80,23 @@ end
 
 function ActionCards.setup_deck(player_count)
     local four_player_deck = getObjectFromGUID(action_deck_4P_GUID)
+    local mandate_deck = getObjectFromGUID(mandate_cards_GUID)
+
     local deck = ActionCards.get_action_deck()
     if (player_count >= 4) then
+                LOG.INFO("aaaaaaaaaaaaaaaaaaaaaaaaaaa put in 4p deck")
         deck.putObject(four_player_deck)
         Wait.time(function()
             deck.randomize()
+            if player_count >= 5 then
+                deck.putObject(mandate_deck)
+            end
         end, 1.5)
     else
+        LOG.INFO("aaaaaaaaaaaaaaaaaaaaaaaaaaadestroyed 4p deck")
         destroyObject(four_player_deck)
     end
+
 end
 
 function ActionCards.setup_events(player_count)

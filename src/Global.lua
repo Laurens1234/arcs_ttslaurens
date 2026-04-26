@@ -8,7 +8,7 @@ available_colors = {"White", "Yellow", "Red", "Teal", "Pink"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = true
+debug = false
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -1206,8 +1206,8 @@ starting_locations = {
         C = { cluster = 6, system = "gate" }
       },
       [5] = {
-        A = { cluster = 5, system = "a" },
-        B = { cluster = 5, system = "b" },
+        A = { cluster = 5, system = "b" },
+        B = { cluster = 5, system = "a" },
         C = { cluster = 6, system = "gate" }
       }
     },
@@ -1242,7 +1242,7 @@ starting_locations = {
       [1] = {
         A = { cluster = 5, system = "c" },
         B = { cluster = 3, system = "a" },
-        C = { cluster = 2, system = "gate" }
+        C = { cluster = 1, system = "gate" }
       },
       [2] = {
         A = { cluster = 3, system = "c" },
@@ -1621,14 +1621,15 @@ function setup_custom_game()
     with_miniatures = Global.getVar("with_miniatures")
     BaseGame.setup_or_destroy_miniatures(with_miniatures)
 
+    local player_count = #active_players
     local p = {
-        is_campaign = true,
-        is_4p = true,
-        leaders_and_lore = true,
-        leaders_and_lore_expansion = true,
-        with_faceup_discard = true,
-        with_miniatures = with_miniatures,
-        players = {"Red", "White", "Yellow", "Teal", "Pink"}
+      is_campaign = true,
+      is_4p = (player_count >= 4),
+      leaders_and_lore = true,
+      leaders_and_lore_expansion = true,
+      with_faceup_discard = true,
+      with_miniatures = with_miniatures,
+      players = {"Red", "White", "Yellow", "Teal", "Pink"}
     }
     set_game_in_progress(p)
 
@@ -1668,7 +1669,7 @@ function set_game_in_progress(params)
     else
         BaseGame.base_exclusive_components_visibility(true)
     end
-    if (params.is_4p) then
+    if (params.is_4p or player_count) then
         BaseGame.four_player_cards_visibility(true)
     end
     if (params.leaders_and_lore) then
@@ -1748,6 +1749,14 @@ function onLoad(script_state)
               ArcsPlayer.components_visibility(col, false, false)
             end
           end
+        end
+
+        -- Ensure 4p action cards visibility matches active player count
+        local player_count = #active_players
+        if player_count >= 4 then
+          BaseGame.four_player_cards_visibility(true)
+        else
+          BaseGame.four_player_cards_visibility(false)
         end
 
         -- Safe reattachment of various UI helpers and object onload handlers

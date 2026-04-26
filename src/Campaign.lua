@@ -102,7 +102,7 @@ function Campaign.setup(with_leaders, with_ll_expansion, with_miniatures)
 
     local p = {
         is_campaign = true,
-        is_4p = #active_players == 4,
+        is_4p = #active_players >= 4,
         leaders_and_lore = with_leaders,
         leaders_and_lore_expansion = with_ll_expansion,
         with_faceup_discard = ActionCards.is_face_up_discard_active(),

@@ -268,7 +268,8 @@ function BaseGame.components_visibility(params)
     if (not params.is_campaign) then
         BaseGame.base_exclusive_components_visibility(params.is_visible)
     end
-    if (params.is_4p) then
+    local player_count = params.players and #params.players or 0
+    if (params.is_4p or player_count >= 4) then
         BaseGame.four_player_cards_visibility(params.is_visible)
     end
     if (params.leaders_and_lore) then
@@ -302,7 +303,7 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
     end
     local p = {
         is_campaign = false,
-        is_4p = #active_players == 4,
+        is_4p = #active_players == 4 or 5,
         leaders_and_lore = with_leaders,
         leaders_and_lore_expansion = with_ll_expansion,
         with_faceup_discard = ActionCards.is_face_up_discard_active(),
