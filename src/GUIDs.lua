@@ -27,8 +27,7 @@ negative_power_zone_GUID = "3984e5"
 plus_fifty_power_zone_GUID = "3984e6"
 plus_one_hundred_power_zone_GUID = "3984e7"
 
-ambition_marker_GUIDs = {"c9e0ee", "a9b02a", "b0b4d0"}
-ambition_marker_5p_GUIDs = {"5b499a", "d7d474", "0f526d"}
+ambition_marker_GUIDs = {"c9e0ee", "a9b02a", "b0b4d0","5b499a", "d7d474", "0f526d"}
 ambition_marker_zone_GUID = "06c552"
 court_deck_zone_GUID = "7a33ff"
 court_discard_zone_GUID = "7a33fa"

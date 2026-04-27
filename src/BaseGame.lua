@@ -293,6 +293,39 @@ function BaseGame.components_visibility(params)
         BaseGame.miniatures_setup(params.is_visible)
     end
 end
+function shift_ambition_markers() --5p
+    local first_pos = {}
+    local height_offset = 0.3  -- adjust this if needed
+
+    -- Step 1: store positions of first 3
+    for i = 1, 3 do
+        local obj = getObjectFromGUID(ambition_marker_GUIDs[i])
+        if obj then
+            local pos = obj.getPosition()
+            first_pos[i] = {x = pos.x, y = pos.y + height_offset, z = pos.z}
+        end
+    end
+
+    -- Step 2: delete first 3
+    for i = 1, 3 do
+        local obj = getObjectFromGUID(ambition_marker_GUIDs[i])
+        if obj then
+            obj.destruct()
+        end
+    end
+
+    -- Step 3 + 4: wait, then move last 3
+    Wait.time(function()
+        for i = 1, 3 do
+            local obj = getObjectFromGUID(ambition_marker_GUIDs[i + 3])
+            if obj and first_pos[i] then
+                obj.setPositionSmooth(first_pos[i], false, true)
+            else
+                print("Missing object or position at index " .. i)
+            end
+        end
+    end, 0.2)
+end
 
 function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
 
@@ -300,6 +333,10 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
     Global.setVar("active_players", active_players)
     if (#active_players < 2 or #active_players > 5) then
         return false
+    end
+
+    if #active_players >= 5 then
+        shift_ambition_markers()
     end
 
     BaseGame.setup_or_destroy_miniatures(with_miniatures)

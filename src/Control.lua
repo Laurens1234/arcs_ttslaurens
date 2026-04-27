@@ -134,31 +134,117 @@ function doNothing()
 end
 
 function start_chapter()
+
+    local available_colors = {"White", "Yellow", "Red", "Teal", "Pink"}
+
+    --------------------------------------------------------------------
+    -- STEP 1: GET DECK
+    --------------------------------------------------------------------
+    local deck = Global.getVar("action_deck") or getObjectFromGUID(action_deck_GUID)
+
+    if not deck then
+        print("ERROR: Action deck not found")
+        return
+    end
+
+    --------------------------------------------------------------------
+    -- STEP 2: SCAN FOR MANDATE CARDS
+    --------------------------------------------------------------------
+    local mandate_by_color = {}
+    local mandate_found = false
+
+    local objects = deck.getObjects()
+
+    for _, obj in ipairs(objects) do
+        if obj.description then
+            for _, color in ipairs(available_colors) do
+                if string.find(obj.description, color .. " Mandate") then
+                    mandate_by_color[color] = obj.guid
+                    mandate_found = true
+                end
+            end
+        end
+    end
+
+    --------------------------------------------------------------------
+    -- STEP 3: GIVE MANDATES IF THEY EXIST
+    --------------------------------------------------------------------
+    if mandate_found then
+        for _, color in ipairs(available_colors) do
+            local guid = mandate_by_color[color]
+
+            if guid and Player[color] then
+                deck.takeObject({
+                    guid = guid,
+                    position = Player[color].getHandTransform().position,
+                    smooth = true,
+                    callback_function = function(card)
+                        if card then
+                            card.setRotationSmooth({0, 180, 0})
+                        end
+                    end
+                })
+            end
+        end
+    end
+
+    --------------------------------------------------------------------
+    -- STEP 4: SHUFFLE AFTER MANDATES REMOVAL
+    --------------------------------------------------------------------
+    if mandate_found then
+        Wait.time(function()
+            if deck and deck.shuffle then
+                deck.shuffle()
+            end
+        end, 0.3)
+    end
+
+    --------------------------------------------------------------------
+    -- STEP 5: ORIGINAL GAME CHECKS
+    --------------------------------------------------------------------
     if ActionCards.count_action_cards() > 0 then
         broadcastToAll(
             "There are still action cards in play, please End Round and try again.",
-            Color.Red)
+            Color.Red
+        )
         return
     end
 
     Initiative.unseize()
     ActionCards.clear_face_up_discard()
 
-    if (ActionCards.check_hands()) then
+    if ActionCards.check_hands() then
         return
     end
 
-    ActionCards.deal_hand()
+    --------------------------------------------------------------------
+    -- STEP 6: DEAL CARDS (CONDITIONAL)
+    --------------------------------------------------------------------
+    if ActionCards.deal_hand then
+        if mandate_found then
+            -- mandates exist → reduce hand to keep balance (5 total feel)
+            ActionCards.deal_hand(5)
+        else
+            -- no mandates → original rule
+            ActionCards.deal_hand(6)
+        end
+    else
+        print("ERROR: deal_hand missing in ActionCards")
+    end
 
+    --------------------------------------------------------------------
+    -- STEP 7: INITIATIVE
+    --------------------------------------------------------------------
     local initiative_player = Global.getVar("initiative_player")
-    if (initiative_player) then
-        broadcastToAll(initiative_player .. " will start the chapter\n",
-            initiative_player)
+
+    if initiative_player then
+        broadcastToAll(initiative_player .. " will start the chapter\n", initiative_player)
         Turns.turn_color = initiative_player
         Global.setVar("turn_count", 0)
     else
         broadcastToAll(
-            "\n\n!!Could not determine initiative player!!\nPlease ensure initiative marker is near a player board.\n\n")
+            "\n\n!!Could not determine initiative player!!\nPlease ensure initiative marker is near a player board.\n\n"
+        )
     end
 end
 

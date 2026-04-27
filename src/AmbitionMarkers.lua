@@ -49,6 +49,51 @@ local markers = {
             second_power = 2,
             power_desc = "4 / 2 power"
         }
+    },   {
+        object = getObjectFromGUID(ambition_marker_GUIDs[4]),
+        column_pos = Vector({-0.83, 0.2, -1.07}),
+        [true] = {
+            first_power = 6,
+            second_power = 4,
+            third_power = 2,
+            power_desc = "6 / 4 / 2 power"
+        },
+        [false] = {
+            first_power = 10,
+            second_power = 5,
+            third_power = 3,
+            power_desc = "10 / 5 / 3 power"
+        }
+    }, {
+        object = getObjectFromGUID(ambition_marker_GUIDs[5]),
+        column_pos = Vector({-0.92, 0.2, -1.07}),
+        [true] = {
+            first_power = 4,
+            second_power = 2,
+            third_power = 1,
+            power_desc = "4 / 2 / 1 power"
+        },
+        [false] = {
+            first_power = 7,
+            second_power = 4,
+            third_power = 2,
+            power_desc = "7 / 4 / 2 power"
+        }
+    }, {
+        object = getObjectFromGUID(ambition_marker_GUIDs[6]),
+        column_pos = Vector({-1.00, 0.21, -1.07}),
+        [false] = {
+            first_power = 3,
+            second_power = 1,
+            third_power = 0,
+            power_desc = "3 / 1 / 0 power"
+        },
+        [true] = {
+            first_power = 5,
+            second_power = 2,
+            third_power = 1,
+            power_desc = "5 / 2 / 1 power"
+        }
     }
 }
 
@@ -301,12 +346,13 @@ function ambitionMarkers:undo()
     if (last_declared_marker == nil) then
         Log.ERROR(
             "Could not find last declared ambition marker, resetting zero marker.")
-        -- ambitionMarkers.display_declare_button()
+         ambitionMarkers.display_declare_button()
         return
     end
     local reach_board = getObjectFromGUID(reach_board_GUID)
     local undo_pos =
         reach_board.positionToWorld(last_declared_marker.column_pos)
+    undo_pos.y = undo_pos.y + 0.3
     last_declared_marker.object.setPositionSmooth(undo_pos)
 
     -- move zero marker back
@@ -314,12 +360,12 @@ function ambitionMarkers:undo()
     zero_marker.setPositionSmooth(reach_board.positionToWorld({0.94, 0.2, 1.09}))
     zero_marker.setRotationSmooth({0.00, 180.00, 0.00})
 
-    -- ambitionMarkers.display_declare_button()
+     ambitionMarkers.display_declare_button()
 end
 
 function ambitionMarkers:reset_zero_marker()
     last_declared_marker = nil
-    -- ambitionMarkers.display_declare_button()
+     ambitionMarkers.display_declare_button()
 
     local zero_marker = getObjectFromGUID(zero_marker_GUID)
     local reach_board = getObjectFromGUID(reach_board_GUID)
@@ -335,7 +381,10 @@ function ambitionMarkers:highest_undeclared()
     local marker_mapping = {
         [ambition_marker_GUIDs[1]] = markers[1],
         [ambition_marker_GUIDs[2]] = markers[2],
-        [ambition_marker_GUIDs[3]] = markers[3]
+        [ambition_marker_GUIDs[3]] = markers[3],
+        [ambition_marker_GUIDs[4]] = markers[4],
+        [ambition_marker_GUIDs[5]] = markers[5],
+        [ambition_marker_GUIDs[6]] = markers[6]
     }
 
     for _, marker in pairs(available_markers) do
@@ -399,6 +448,7 @@ function declare_ambition(obj, player_color)
         this_ambition = ambitions[lead_info.real_number]
         local pos = high_marker.column_pos + this_ambition.row_pos;
         pos = reach_board.positionToWorld(pos)
+        pos.y = pos.y + 0.3
         high_marker.object.setPositionSmooth(pos)
         broadcastToAll("" .. player_color .. " has declared " ..
                            this_ambition.name .. " ambition for " .. power,
@@ -417,7 +467,7 @@ function declare_ambition(obj, player_color)
     zero_marker.setPositionSmooth(reach_board.positionToWorld({1.02, 0.2, 0.67}))
     zero_marker.setRotationSmooth({0.00, 90.00, 0.00})
 
-    -- ambitionMarkers.display_undo_button()
+    ambitionMarkers.display_undo_button()
 end
 function undo_ambition(obj, player_color)
     ambitionMarkers.undo(obj)

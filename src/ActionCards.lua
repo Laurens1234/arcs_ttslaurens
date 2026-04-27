@@ -124,12 +124,12 @@ function ActionCards.is_face_up_discard_active()
     return Global.getVar("is_face_up_discard_active")
 end
 
-function ActionCards.deal_hand()
+function ActionCards.deal_hand(num)
     broadcastToAll("Shuffle and deal 6 action cards to all players")
     local deck = ActionCards.get_action_deck()
     deck.randomize()
     Wait.time(function()
-        deck.deal(6)
+        deck.deal(num)
     end, 1)
 end
 
