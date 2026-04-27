@@ -30,6 +30,9 @@ local BaseGame = {
             ambition_high = "c9e0ee",
             ambition_medium = "a9b02a",
             ambition_low = "b0b4d0",
+            ambition_high_5p = "5b499a",
+            ambition_medium_5p = "d7d474",
+            ambition_low_5p = "0f526d",
             action_cards = "227406",
             ambition_declared = "0289cb",
             chapter_pawn = "9c3ac8",
@@ -50,6 +53,7 @@ local BaseGame = {
             court_deck_backer = "93690a",
             artifact_deck = "870e15",
             edifice_deck = "becb7c",
+            mandate_cards = "c549b5",
             lost_vaults_marker_bag = "7f3e2f",
             lost_vaults_rules = "952d62"
         }
@@ -120,29 +124,33 @@ function BaseGame.leaders_visibility(show, with_expansion)
         })
     end
     -- Also apply visibility to Laurens' and PnP#3 custom leader decks (if present)
-    local laurens = getObjectFromGUID(BaseGame.components.laurens_custom_leaders)
-    if (laurens) then
-        laurens.setInvisibleTo(visibility)
-        Global.call("move_and_lock_object", {
-            obj = laurens,
-            is_visible = show
-        })
+    if Global.getVar("with_laurens_custom_leader") then
+        local laurens = getObjectFromGUID(BaseGame.components.laurens_custom_leaders)
+        if (laurens) then
+            laurens.setInvisibleTo(visibility)
+            Global.call("move_and_lock_object", {
+                obj = laurens,
+                is_visible = show
+            })
+        end
     end
-    local pnp3 = getObjectFromGUID(BaseGame.components.pnp3_leaders)
-    if (pnp3) then
-        pnp3.setInvisibleTo(visibility)
-        Global.call("move_and_lock_object", {
-            obj = pnp3,
-            is_visible = show
-        })
-    end
-    local pnp3_extra = getObjectFromGUID(BaseGame.components.pnp3_leaders_extra)
-    if (pnp3_extra) then
-        pnp3_extra.setInvisibleTo(visibility)
-        Global.call("move_and_lock_object", {
-            obj = pnp3_extra,
-            is_visible = show
-        })
+    if Global.getVar("with_pnp3_leaders") then
+        local pnp3 = getObjectFromGUID(BaseGame.components.pnp3_leaders)
+        if (pnp3) then
+            pnp3.setInvisibleTo(visibility)
+            Global.call("move_and_lock_object", {
+                obj = pnp3,
+                is_visible = show
+            })
+        end
+        local pnp3_extra = getObjectFromGUID(BaseGame.components.pnp3_leaders_extra)
+        if (pnp3_extra) then
+            pnp3_extra.setInvisibleTo(visibility)
+            Global.call("move_and_lock_object", {
+                obj = pnp3_extra,
+                is_visible = show
+            })
+        end
     end
 end
 
@@ -1230,22 +1238,22 @@ function BaseGame.dealLeaders(player_count)
     -- If Laurens' custom deck exists but is NOT selected for inclusion,
     -- move it to the left of the starting leader deck so it's visible but not used.
     -- If custom decks exist but are NOT selected for inclusion, move them aside
-    local laurens_obj = getObjectFromGUID(BaseGame.components.laurens_custom_leaders)
-    if laurens_obj and not Global.getVar("with_laurens_custom_leader") then
-        if leader_deck and leader_deck.getPosition then
-            local p = leader_deck.getPosition()
-            local left_x = p.x - 3.2
-            laurens_obj.setPosition({left_x, p.y, p.z})
-        end
-    end
-    local pnp3_obj = getObjectFromGUID(BaseGame.components.pnp3_leaders)
-    if pnp3_obj and not Global.getVar("with_pnp3_custom_leader") then
-        if leader_deck and leader_deck.getPosition then
-            local p = leader_deck.getPosition()
-            local left_x = p.x - 3.2
-            pnp3_obj.setPosition({left_x, p.y, p.z})
-        end
-    end
+    -- local laurens_obj = getObjectFromGUID(BaseGame.components.laurens_custom_leaders)
+    -- if laurens_obj and not Global.getVar("with_laurens_custom_leader") then
+    --     if leader_deck and leader_deck.getPosition then
+    --         local p = leader_deck.getPosition()
+    --         local left_x = p.x - 3.2
+    --         laurens_obj.setPosition({left_x, p.y, p.z})
+    --     end
+    -- end
+    -- local pnp3_obj = getObjectFromGUID(BaseGame.components.pnp3_leaders)
+    -- if pnp3_obj and not Global.getVar("with_pnp3_custom_leader") then
+    --     if leader_deck and leader_deck.getPosition then
+    --         local p = leader_deck.getPosition()
+    --         local left_x = p.x - 3.2
+    --         pnp3_obj.setPosition({left_x, p.y, p.z})
+    --     end
+    -- end
 
     local leader_pos = {
         x = 25,
