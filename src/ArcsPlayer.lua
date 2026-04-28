@@ -262,10 +262,19 @@ function ArcsPlayer:set_last_played_action_card(card_info)
 end
 
 function ArcsPlayer:set_last_played_seize_card(action_card_description)
-    self.last_seize_card = {
-        type = string.sub(action_card_description, 1, -3),
-        number = tonumber(string.sub(action_card_description, -1, -1))
-    }
+    if string.find(action_card_description, "Mandate") then
+        self.last_seize_card = {
+            type = action_card_description,
+            number = 0
+        }
+    else
+        local card_type = string.sub(action_card_description, 1, -3)
+        local card_number = tonumber(string.sub(action_card_description, -2, -1))
+        self.last_seize_card = {
+            type = card_type,
+            number = card_number
+        }
+    end
 end
 
 function ArcsPlayer.has_secret_order(player_color)
