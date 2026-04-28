@@ -65,6 +65,10 @@ local face_up_discard_guids = {
 
 function ActionCards.get_action_deck()
     local action_deck_zone = getObjectFromGUID(action_deck_zone_GUID)
+    if not action_deck_zone then
+        LOG.WARNING("ActionCards.get_action_deck: action_deck_zone not found: " .. tostring(action_deck_zone_GUID))
+        return getObjectFromGUID(action_deck_GUID)
+    end
     local action_deck_zone_objects = action_deck_zone.getObjects()
 
     if (action_deck_zone_objects) then
@@ -154,7 +158,12 @@ end
 function ActionCards.clear_played()
     LOG.INFO("ActionCards.clear_played")
 
-    local played_objects = getObjectFromGUID(action_card_zone_GUID).getObjects()
+    local action_zone = getObjectFromGUID(action_card_zone_GUID)
+    if not action_zone then
+        LOG.WARNING("ActionCards.clear_played: action_card_zone not found: " .. tostring(action_card_zone_GUID))
+        return true
+    end
+    local played_objects = action_zone.getObjects()
 
     -- Handle union cards
     local union_marked_cards = ActionCards.union_handling(played_objects)
@@ -200,7 +209,7 @@ function ActionCards.to_face_down_discard(card)
     LOG.INFO("ActionCards.to_face_down_discard")
     local reach_map = getObjectFromGUID(reach_board_GUID)
     local pos = reach_map.positionToWorld(fdd_pos)
-    local active_players = Global.getVar("active_players") or getSeatedPlayers()
+    local active_players = getSeatedPlayers()
     if active_players and #active_players >= 5 then
         pos.z = pos.z + 1.57
     end
@@ -339,6 +348,10 @@ function ActionCards.get_surpassing_card()
     local surpassing_card = nil
     local max_surpassing_number = 0
     local played_zone = getObjectFromGUID(action_card_zone_GUID)
+    if not played_zone then
+        LOG.WARNING("ActionCards.get_surpassing_card: action_card_zone not found: " .. tostring(action_card_zone_GUID))
+        return nil
+    end
 
     LOG.DEBUG("get_surpassing_card: lead card is " .. tostring(lead.type) .. " " .. tostring(lead.number) .. " (guid=" .. tostring(lead.guid) .. ")")
     local found_mandate_surpass = false
@@ -415,7 +428,10 @@ end
 function ActionCards.count_action_cards()
     local count = 0
     local played_zone = getObjectFromGUID(action_card_zone_GUID)
-
+    if not played_zone then
+        LOG.WARNING("ActionCards.count_action_cards: action_card_zone not found: " .. tostring(action_card_zone_GUID))
+        return 0
+    end
     for _, obj in ipairs(played_zone.getObjects()) do
         if obj.hasTag("Action") then
             count = count + 1
@@ -426,8 +442,12 @@ end
 
 function ActionCards.find_seize_player()
     local seize_zone = getObjectFromGUID(seize_zone_GUID)
+    if not seize_zone then
+        LOG.WARNING("ActionCards.find_seize_player: seize_zone not found: " .. tostring(seize_zone_GUID))
+        return nil
+    end
     local seize_zone_objects = seize_zone.getObjects()
-    for _, obj in ipairs(seize_zone_objects) do
+    for _, obj in ipairs(seize_zone_objects or {}) do
         if obj.hasTag("Action") and obj.is_face_down then
             local seize_card = ActionCards.get_info(obj)
             local all_players = Global.getVar("active_players")

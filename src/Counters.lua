@@ -151,12 +151,28 @@ end
 function ObjectCounters.setup()
     the_counters = initializeCounters()
     for _, counter in pairs(the_counters) do
-        ObjectCounters.add(getObjectFromGUID(counter.container_GUID), counter)
+        local container = nil
+        if counter and counter.container_GUID then
+            container = getObjectFromGUID(counter.container_GUID)
+        end
+        if not container then
+            LOG.WARNING("ObjectCounters.setup: missing container for GUID " .. tostring(counter and counter.container_GUID))
+        else
+            ObjectCounters.add(container, counter)
+        end
     end
 end
 
 function ObjectCounters.add(container, button)
-    local guid = container.getGUID()
+    if not container then
+        LOG.WARNING("ObjectCounters.add called with nil container")
+        return
+    end
+    local ok, guid = pcall(function() return container.getGUID() end)
+    if not ok or not guid then
+        LOG.WARNING("ObjectCounters.add: could not get GUID from container")
+        return
+    end
     local existing = container.getButtons() or {}
 
     if (container.type == "Infinite") then

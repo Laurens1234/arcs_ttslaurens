@@ -8,7 +8,7 @@ available_colors = {"White", "Yellow", "Red", "Teal", "Pink"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = true
+debug = false
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -1607,14 +1607,20 @@ function setup_custom_game()
 
     BaseGame.destroy_grey_setup_menu_objects()
 
-    for _, v in ipairs({"Red", "White", "Yellow", "Teal", "Pink"}) do
-        local arcs_player = ArcsPlayer:new{
-            color = v
-        }
-        table.insert(active_players, arcs_player)
+    -- Build active_players from seated players if present; otherwise use all five.
+    active_players = {}
+    local seated = getSeatedPlayers()
+    if seated and #seated > 0 then
+      for _, color in ipairs(seated) do
+        table.insert(active_players, ArcsPlayer:new{ color = color })
+      end
+    else
+      for _, v in ipairs({"Red", "White", "Yellow", "Teal", "Pink"}) do
+        table.insert(active_players, ArcsPlayer:new{ color = v })
+      end
     end
     for _, v in ipairs(active_players) do
-        ArcsPlayer.components_visibility(v.color, true, true)
+      ArcsPlayer.components_visibility(v.color, true, true)
     end
 
     with_miniatures = Global.getVar("with_miniatures")
@@ -1634,7 +1640,7 @@ function setup_custom_game()
 
     BaseGame.base_exclusive_components_visibility(true)
     BaseGame.setupOutOfPlayForCustom()
-    if #active_players >= 5 then
+    if player_count >= 5 then -- also happens for 4? -- fix this?
       BaseGame.adjust_action_deck_for_5p()
     end
 end
