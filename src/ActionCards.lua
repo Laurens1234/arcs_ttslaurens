@@ -200,6 +200,10 @@ function ActionCards.to_face_down_discard(card)
     LOG.INFO("ActionCards.to_face_down_discard")
     local reach_map = getObjectFromGUID(reach_board_GUID)
     local pos = reach_map.positionToWorld(fdd_pos)
+    local active_players = Global.getVar("active_players") or getSeatedPlayers()
+    if active_players and #active_players >= 5 then
+        pos.z = pos.z + 1.57
+    end
     local rot = fdd_rot
     card.setPositionSmooth(pos)
     card.setRotationSmooth(rot)

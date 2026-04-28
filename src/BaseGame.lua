@@ -821,6 +821,33 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
         end
     end
 
+    -- If this is a 5-player game, move the action deck to the requested location
+    if #active_players == 5 then
+        pcall(function()
+            local target = {-12.14, 1.08, 8.52}
+            local target_zone = {-12.14, 1.3, 8.52}
+            -- Move the physical action deck (if present)
+            local deck = ActionCards.get_action_deck()
+            if deck then
+                if deck.setPositionSmooth then
+                    deck.setPositionSmooth(target)
+                elseif deck.setPosition then
+                    deck.setPosition(target)
+                end
+            end
+
+            -- Also move the action deck zone object so zone coordinates match
+            local zone = getObjectFromGUID(action_deck_zone_GUID)
+            if zone then
+                if zone.setPositionSmooth then
+                    zone.setPositionSmooth(target_zone)
+                elseif zone.setPosition then
+                    zone.setPosition(target_zone)
+                end
+            end
+        end)
+    end
+
     Turns.type = 2
     Turns.order = active_player_colors
     Turns.turn_color = active_players[1].color
