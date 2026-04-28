@@ -119,29 +119,8 @@ function Campaign.setup(with_leaders, with_ll_expansion, with_miniatures)
     ActionCards.setup_deck(#active_players)
     ActionCards.setup_events(#active_players)
 
-    -- If this is a 5-player campaign, move the action deck and its zone
-    if #active_players == 5 then
-        pcall(function()
-            local target = {-12.14, 1.08, 8.52}
-            local target_zone = {-12.14, 1.3, 8.52}
-            local deck = ActionCards.get_action_deck()
-            if deck then
-                if deck.setPositionSmooth then
-                    deck.setPositionSmooth(target)
-                elseif deck.setPosition then
-                    deck.setPosition(target)
-                end
-            end
-
-            local zone = getObjectFromGUID(action_deck_zone_GUID)
-            if zone then
-                if zone.setPositionSmooth then
-                    zone.setPositionSmooth(target_zone)
-                elseif zone.setPosition then
-                    zone.setPosition(target_zone)
-                end
-            end
-        end)
+    if #active_players >= 5 then
+        BaseGame.adjust_action_deck_for_5p()
     end
 
     Campaign.setupChapterTrack()

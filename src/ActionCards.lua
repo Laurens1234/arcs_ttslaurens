@@ -84,7 +84,7 @@ function ActionCards.setup_deck(player_count)
 
     local deck = ActionCards.get_action_deck()
     if (player_count >= 4) then
-                LOG.INFO("aaaaaaaaaaaaaaaaaaaaaaaaaaa put in 4p deck")
+                LOG.INFO("put in 4p deck")
         deck.putObject(four_player_deck)
         Wait.time(function()
             deck.randomize()
@@ -93,7 +93,7 @@ function ActionCards.setup_deck(player_count)
             end
         end, 1.5)
     else
-        LOG.INFO("aaaaaaaaaaaaaaaaaaaaaaaaaaadestroyed 4p deck")
+        LOG.INFO("destroyed 4p deck")
         destroyObject(four_player_deck)
     end
 

@@ -149,7 +149,6 @@ function scan_action_deck_zone()
               obj.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom)
             end)
             draw_bottom_patched[guid] = true
-            if debug then broadcastToAll("Attached Draw-bottom to deck " .. guid) end
           end
         end
       end
@@ -285,7 +284,7 @@ function onObjectDrop(player_color, object) -- this is being called from orig la
         if obj and obj.getPosition then
           AmbitionMarkers.get_ambition_info(obj)
         else
-          if debug then broadcastToAll("Ambition callback: object missing for guid " .. tostring(obj_guid)) end
+          LOG.DEBUG("Ambition callback: object missing for guid " .. tostring(obj_guid))
         end
       end, 0.5)
     end
@@ -330,7 +329,7 @@ function onObjectEnterScriptingZone(zone, object)
       object.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom)
     end)
     draw_bottom_patched[guid] = true
-    if debug then broadcastToAll("Attached Draw-bottom to deck " .. guid) end
+    LOG.DEBUG("Attached Draw-bottom to deck " .. guid)
   end
 end
 
@@ -1635,6 +1634,9 @@ function setup_custom_game()
 
     BaseGame.base_exclusive_components_visibility(true)
     BaseGame.setupOutOfPlayForCustom()
+    if #active_players >= 5 then
+      BaseGame.adjust_action_deck_for_5p()
+    end
 end
 
 ----------------------------------------------------

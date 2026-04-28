@@ -327,6 +327,51 @@ function shift_ambition_markers() --5p
     end, 0.2)
 end
 
+-- Move/scale action deck and related zones for 5-player layout
+function BaseGame.adjust_action_deck_for_5p()
+    pcall(function()
+        local target = {-12.14, 1.08, 8.52}
+        local target_zone = {-12.14, 1.3, 8.52}
+
+        -- Move the physical action deck (if present)
+        local ok, deck = pcall(function() return ActionCards.get_action_deck() end)
+        if ok and deck then
+            if deck.setPositionSmooth then
+                deck.setPositionSmooth(target)
+            elseif deck.setPosition then
+                deck.setPosition(target)
+            end
+        end
+
+        -- Move the action deck zone object so zone coordinates match
+        local zone = getObjectFromGUID(action_deck_zone_GUID)
+        if zone then
+            if zone.setPositionSmooth then
+                zone.setPositionSmooth(target_zone)
+            elseif zone.setPosition then
+                zone.setPosition(target_zone)
+            end
+        end
+
+        -- Move and scale the action card zone for 5P
+        local action_card_zone = getObjectFromGUID(action_card_zone_GUID)
+        if action_card_zone then
+            local action_card_pos = {-12.13, 3.54, 0.34}
+            local action_card_scale = {3.84, 5.10, 12.65}
+            if action_card_zone.setPositionSmooth then
+                action_card_zone.setPositionSmooth(action_card_pos)
+            elseif action_card_zone.setPosition then
+                action_card_zone.setPosition(action_card_pos)
+            end
+            pcall(function()
+                if action_card_zone.setScale then
+                    action_card_zone.setScale(action_card_scale)
+                end
+            end)
+        end
+    end)
+end
+
 function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
 
     local active_players = Global.call("getOrderedPlayers")
@@ -634,7 +679,7 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
                                             local die_x, die_y, die_z = nil, nil, nil
                                             if die_zone and die_zone.getPosition then
                                                 local dz = die_zone.getPosition()
-                                                die_x, die_y, die_z = dz.x, dz.y + 1.2, dz.z
+                                                die_x, die_y, die_z = dz.x - 2, dz.y + 1.2, dz.z
                                             else
                                                 -- fallback to the planet target if die zone missing
                                                 die_x, die_y, die_z = target_pos.x, target_pos.y + 1.2, target_pos.z
@@ -645,13 +690,13 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
                                             local event_die = getObjectFromGUID(event_die_guid)
                                             local number_die = getObjectFromGUID(number_die_guid)
 
-                                            pcall(function()
-                                                if event_die and event_die.setPositionSmooth then
-                                                    event_die.setPositionSmooth({die_x + 0.18, die_y, die_z})
-                                                elseif event_die and event_die.setPosition then
-                                                    event_die.setPosition({die_x + 0.18, die_y, die_z})
-                                                end
-                                            end)
+                                            -- pcall(function()
+                                            --     if event_die and event_die.setPositionSmooth then
+                                            --         event_die.setPositionSmooth({die_x + 0.18, die_y, die_z})
+                                            --     elseif event_die and event_die.setPosition then
+                                            --         event_die.setPosition({die_x + 0.18, die_y, die_z})
+                                            --     end
+                                            -- end)
                                             pcall(function()
                                                 if number_die and number_die.setPositionSmooth then
                                                     number_die.setPositionSmooth({die_x - 0.18, die_y, die_z})
@@ -821,31 +866,8 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
         end
     end
 
-    -- If this is a 5-player game, move the action deck to the requested location
-    if #active_players == 5 then
-        pcall(function()
-            local target = {-12.14, 1.08, 8.52}
-            local target_zone = {-12.14, 1.3, 8.52}
-            -- Move the physical action deck (if present)
-            local deck = ActionCards.get_action_deck()
-            if deck then
-                if deck.setPositionSmooth then
-                    deck.setPositionSmooth(target)
-                elseif deck.setPosition then
-                    deck.setPosition(target)
-                end
-            end
-
-            -- Also move the action deck zone object so zone coordinates match
-            local zone = getObjectFromGUID(action_deck_zone_GUID)
-            if zone then
-                if zone.setPositionSmooth then
-                    zone.setPositionSmooth(target_zone)
-                elseif zone.setPosition then
-                    zone.setPosition(target_zone)
-                end
-            end
-        end)
+    if #active_players >= 5 then
+        BaseGame.adjust_action_deck_for_5p()
     end
 
     Turns.type = 2
