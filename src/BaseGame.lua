@@ -247,6 +247,41 @@ function BaseGame.four_player_cards_visibility(show)
     end
 end
 
+-- Return the list of available setup option tables for a given player count (2..5)
+function BaseGame.getSetupOptions(player_count)
+    local two_player_setup_cards = {
+        { name = "FRONTIERS", guid = Global.getVar("frontiers_2P_GUID"), out_of_play_clusters = {1, 6}, player_colors = 2 },
+        { name = "HOMELANDS", guid = Global.getVar("homelands_2P_GUID"), out_of_play_clusters = {1, 4}, player_colors = 2 },
+        { name = "MIX UP 1", guid = Global.getVar("mix_up_1_2P_GUID"), out_of_play_clusters = {2, 5}, player_colors = 2 },
+        { name = "MIX UP 2", guid = Global.getVar("mix_up_2_2P_GUID"), out_of_play_clusters = {1, 4}, player_colors = 2 }
+    }
+
+    local three_player_setup_cards = {
+        { name = "FRONTIERS", guid = Global.getVar("frontiers_3P_GUID"), out_of_play_clusters = {2, 3}, player_colors = 3 },
+        { name = "HOMELANDS", guid = Global.getVar("homelands_3P_GUID"), out_of_play_clusters = {5, 6}, player_colors = 3 },
+        { name = "CORE CONFLICT", guid = Global.getVar("core_conflict_3P_GUID"), out_of_play_clusters = {3, 6}, player_colors = 3 },
+        { name = "MIX UP", guid = Global.getVar("mix_up_3P_GUID"), out_of_play_clusters = {1, 4}, player_colors = 3 }
+    }
+
+    local four_player_setup_cards = {
+        { name = "FRONTIERS", guid = Global.getVar("frontiers_4P_GUID"), out_of_play_clusters = {5}, player_colors = 4 },
+        { name = "MIX UP 1", guid = Global.getVar("mix_up_1_4P_GUID"), out_of_play_clusters = {3}, player_colors = 4 },
+        { name = "MIX UP 2", guid = Global.getVar("mix_up_2_4P_GUID"), out_of_play_clusters = {4}, player_colors = 4 },
+        { name = "MIX UP 3", guid = Global.getVar("mix_up_3_4P_GUID"), out_of_play_clusters = {6}, player_colors = 4 }
+    }
+
+    local five_player_setup_cards = {
+        { name = "FRONTIERS", guid = Global.getVar("frontiers_5P_GUID"), out_of_play_clusters = {}, player_colors = 5 },
+        { name = "EMPIRES", guid = Global.getVar("empires_5P_GUID"), out_of_play_clusters = {}, player_colors = 5 },
+        { name = "MIX UP 1", guid = Global.getVar("mix_up_1_5P_GUID"), out_of_play_clusters = {}, player_colors = 5 },
+        { name = "MIX UP 2", guid = Global.getVar("mix_up_2_5P_GUID"), out_of_play_clusters = {}, player_colors = 5 },
+        { name = "EXTENSION", guid = Global.getVar("extension_5P_GUID"), out_of_play_clusters = {}, player_colors = 5 }
+    }
+
+    local setup_cards = { two_player_setup_cards, three_player_setup_cards, four_player_setup_cards, five_player_setup_cards }
+    return setup_cards[player_count - 1]
+end
+
 function BaseGame.base_exclusive_components_visibility(show)
     local visibility = show and {} or
                            {"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"}
@@ -406,9 +441,24 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
     -- Clear the flag after setup to avoid affecting reloads or later calls
     Global.setVar("is_initial_setup", false)
 
-    -- B
+    -- B: determine initiative recipient (respect stored choice or random)
     local initiative = require("src/InitiativeMarker")
-    initiative.take(active_players[1].color)
+    local init_choice_color = Global.getVar("initiative_choice_color")
+    local init_choice_index = Global.getVar("initiative_choice_index") or 0
+    local init_choice_pcount = Global.getVar("initiative_choice_player_count")
+    local chosen_color
+    if init_choice_color then
+        -- use explicit color if it matches an active player
+        for _, p in ipairs(active_players) do
+            if p.color == init_choice_color then chosen_color = p.color; break end
+        end
+    elseif init_choice_index and init_choice_index >= 1 and init_choice_pcount == #active_players and init_choice_index <= #active_players then
+        chosen_color = active_players[init_choice_index].color
+    end
+    if not chosen_color then
+        chosen_color = active_players[math.random(#active_players)].color
+    end
+    initiative.take(chosen_color)
 
     -- D
     ActionCards.setup_deck(#active_players)
@@ -999,7 +1049,7 @@ function BaseGame.chooseSetupCard(player_count)
 
     local two_player_setup_cards = {
         {
-            name = "FRONTIERS *For Experienced Players*",
+            name = "FRONTIERS",
             guid = Global.getVar("frontiers_2P_GUID"),
             out_of_play_clusters = {1, 6},
             player_colors = 2
@@ -1033,7 +1083,7 @@ function BaseGame.chooseSetupCard(player_count)
             out_of_play_clusters = {5, 6},
             player_colors = 3
         }, {
-            name = "CORE CONFLICT *For Experienced Players*",
+            name = "CORE CONFLICT",
             guid = Global.getVar("core_conflict_3P_GUID"),
             out_of_play_clusters = {3, 6},
             player_colors = 3
@@ -1103,8 +1153,20 @@ function BaseGame.chooseSetupCard(player_count)
         four_player_setup_cards, five_player_setup_cards
     }
 
-    local chosen_setup_card = setup_cards[player_count - 1][math.random(
-        #setup_cards[player_count - 1])]
+    -- Allow an external selection to override randomness. Global var
+    -- 'setup_choice_index' stores 0 for random or 1..N to pick a specific
+    -- option. 'setup_choice_player_count' keeps the player count the
+    -- selection was made for.
+    local options = BaseGame.getSetupOptions(player_count) or setup_cards[player_count - 1]
+    local N = #options
+    local choice_index = Global.getVar("setup_choice_index") or 0
+    local choice_pcount = Global.getVar("setup_choice_player_count")
+    local chosen_setup_card
+    if choice_index and choice_index >= 1 and choice_pcount == player_count and choice_index <= N then
+        chosen_setup_card = options[choice_index]
+    else
+        chosen_setup_card = options[math.random(N)]
+    end
 
     -- If a chosen 5P setup card has no GUID configured, fall back to a 4P card
     if player_count == 5 and not chosen_setup_card.guid then

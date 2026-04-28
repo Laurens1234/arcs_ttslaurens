@@ -8,7 +8,7 @@ available_colors = {"White", "Yellow", "Red", "Teal", "Pink"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = false
+debug = true
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -586,7 +586,7 @@ function getOrderedPlayers()
         end
     end
 
-    broadcastToAll("Randomly choosing first player...", Color.Purple)
+   -- broadcastToAll("Randomly choosing first player...", Color.Purple)
 
     return ordered_players
 end

@@ -317,6 +317,38 @@ local setDefault_params = {
     font_color = BLACK,
     hover_color = PURPLE
 }
+local setupChoice_params = {
+    index = 21,
+    click_function = "cycle_setup_choice",
+    function_owner = self,
+    label = "Setup: Random",
+    tooltip = "Cycle chosen setup for current player count (Random -> option -> ... -> Random)",
+    -- position to the left of the Set default button (moved further left)
+    position = {-2.30, 0.5, -1.0},
+    width = 1200,
+    height = 400,
+    font_size = 150,
+    scale = {0.3,0.3,0.3},
+    color = GREEN,
+    font_color = BLACK,
+    hover_color = PURPLE
+}
+local initiativeChoice_params = {
+    index = 22,
+    click_function = "cycle_initiative_choice",
+    function_owner = self,
+    label = "Initiative: Random",
+    tooltip = "Choose which player color gets initiative at game start (Random -> player -> ...)",
+    -- positioned to the right of the setup chooser (same column)
+    position = {-2.30, 0.5, -0.65},
+    width = 1200,
+    height = 400,
+    font_size = 140,
+    scale = {0.3,0.3,0.3},
+    color = GREEN,
+    font_color = BLACK,
+    hover_color = PURPLE
+}
 local setupStartGame_params = {
     click_function = "doNothing",
     function_owner = self,
@@ -519,6 +551,8 @@ function onload()
     self.createButton(toggleScavengersEXCLUDE_params)
     self.createButton(togglePnp2EXCLUDE_params)
     self.createButton(togglePnp3EXCLUDE_params)
+    self.createButton(setupChoice_params)
+    self.createButton(initiativeChoice_params)
     -- must add buttons in the order of the actual indices !!!!!!!!!!
 
     -- Initialize numeric display labels from globals (resolve default if nil)
@@ -543,6 +577,39 @@ function onload()
     -- Ensure buttons reflect final values (in case globals changed elsewhere)
     self.editButton({index=12, label = "Leaders: \n" .. tostring(lcount)})
     self.editButton({index=15, label = "Lore: \n" .. tostring(locount)})
+    -- Initialize setup choice display
+    do
+        local sc_index = Global.getVar("setup_choice_index") or 0
+        local sc_pcount = Global.getVar("setup_choice_player_count")
+        local active = Global.call("getOrderedPlayers") or Global.getTable("active_players") or Player.getPlayers() or {}
+        local pcount = #active
+        local display_label = "Setup: Random"
+        if sc_index and sc_index >= 1 and sc_pcount == pcount then
+            local opts = BaseGame.getSetupOptions(pcount) or {}
+            if opts[sc_index] and opts[sc_index].name then
+                display_label = "Setup: " .. tostring(sc_index) .. "\n" .. tostring(opts[sc_index].name)
+            end
+        end
+        self.editButton({index=21, label = display_label})
+    end
+    -- Initialize initiative choice display
+    do
+        local ic_index = Global.getVar("initiative_choice_index") or 0
+        local ic_pcount = Global.getVar("initiative_choice_player_count")
+        local ic_color = Global.getVar("initiative_choice_color")
+        local active = Global.call("getOrderedPlayers") or Global.getTable("active_players") or Player.getPlayers() or {}
+        local pcount = #active
+        local display_label = "Initiative: Random"
+        if ic_color and ic_pcount == pcount then
+            display_label = "Initiative: " .. tostring(ic_index) .. "\n" .. tostring(ic_color)
+        elseif ic_index and ic_index >= 1 and ic_pcount == pcount then
+            local colorname = (active[ic_index] and active[ic_index].color) or nil
+            if colorname then
+                display_label = "Initiative: " .. tostring(ic_index) .. "\n" .. tostring(colorname)
+            end
+        end
+        self.editButton({index=22, label = display_label})
+    end
 end
 
 function toggle_leaders(obj, color, alt_click)
@@ -743,6 +810,69 @@ function set_default_counts(obj, color, alt_click)
     -- Update displays with prefixes
     self.editButton({index=12, label = "Leaders: \n" .. tostring(def)})
     self.editButton({index=15, label = "Lore: \n" .. tostring(def)})
+end
+
+function cycle_setup_choice(obj, color, alt_click)
+    -- Determine active players (use ordered players if available)
+    local active = Global.call("getOrderedPlayers") or Global.getTable("active_players") or Player.getPlayers() or {}
+    local player_count = #active
+    if player_count < 2 or player_count > 5 then
+        broadcastToAll("Setup chooser requires 2-5 active players.", {r=1, g=0, b=0})
+        return
+    end
+
+    local opts = BaseGame.getSetupOptions(player_count) or {}
+    local N = #opts
+    if N == 0 then
+        broadcastToAll("No setup options configured for " .. tostring(player_count) .. " players", {r=1, g=0.5, b=0})
+        return
+    end
+
+    local cur = Global.getVar("setup_choice_index") or 0
+    local next_index = (cur + 1) % (N + 1) -- cycles 0..N (0 == random)
+    Global.setVar("setup_choice_index", next_index)
+    Global.setVar("setup_choice_player_count", player_count)
+
+    local label
+    if next_index == 0 then
+        label = "Setup: Random"
+    else
+        local name = opts[next_index].name or tostring(next_index)
+        label = "Setup: " .. "\n" .. tostring(name)
+    end
+    self.editButton({index=21, label = label})
+end
+
+function cycle_initiative_choice(obj, color, alt_click)
+    local active = Global.call("getOrderedPlayers") or Global.getTable("active_players") or Player.getPlayers() or {}
+    local player_count = #active
+    if player_count < 2 or player_count > 5 then
+        broadcastToAll("Initiative chooser requires 2-5 active players.", {r=1, g=0, b=0})
+        return
+    end
+
+    local N = player_count
+    local cur = Global.getVar("initiative_choice_index") or 0
+    local next_index = (cur + 1) % (N + 1) -- cycles 0..N (0 == random)
+    -- store both index and explicit color for robustness when players join/leave
+    Global.setVar("initiative_choice_index", next_index)
+    Global.setVar("initiative_choice_player_count", player_count)
+    if next_index == 0 then
+        Global.setVar("initiative_choice_color", nil)
+    else
+        local player = active[next_index]
+        local color_name = (player and player.color) or nil
+        Global.setVar("initiative_choice_color", color_name)
+    end
+
+    local label
+    if next_index == 0 then
+        label = "Initiative: Random"
+    else
+        local color_name = Global.getVar("initiative_choice_color") or tostring(next_index)
+        label = "Initiative: " .. "\n" .. tostring(color_name)
+    end
+    self.editButton({index=22, label = label})
 end
 
 function setup_base_game()
