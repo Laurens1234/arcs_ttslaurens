@@ -1060,7 +1060,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 24 do
+    for i = 0, 26 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)
