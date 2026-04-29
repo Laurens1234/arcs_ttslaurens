@@ -206,7 +206,7 @@ local toggleDontUseBasePackINCLUDE_params = {
     function_owner = self,
     label = " Don't use\n Base & Pack Leaders",
     tooltip = "Restore base and pack leaders in setup",
-    position = {-1.54, 0.5, 0.45},
+    position = {-1.54, 0.5, 1.16},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -315,8 +315,8 @@ local setDefault_params = {
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = GREEN,
-    font_color = BLACK,
+    color = BLACK,
+    font_color = GOLD,
     hover_color = PURPLE
 }
 local setupChoice_params = {
@@ -331,8 +331,8 @@ local setupChoice_params = {
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = GREEN,
-    font_color = BLACK,
+    color = BLACK,
+    font_color = GOLD,
     hover_color = PURPLE
 }
 local initiativeChoice_params = {
@@ -347,8 +347,8 @@ local initiativeChoice_params = {
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = GREEN,
-    font_color = BLACK,
+    color = BLACK,
+    font_color = GOLD,
     hover_color = PURPLE
 }
 local setupStartGame_params = {
@@ -570,23 +570,28 @@ end
 function onload()
     -- compute sensible defaults for leader/lore counts so display buttons start with numbers
     local function initial_resolved_default_count()
-        local active = Global.getTable("active_players") or {}
-        local n = #active
+        -- Count seated players whose colors are in `available_colors`
+        local ordered = Global.call("getOrderedPlayers") or {}
+        local n = 0
+        local colors = available_colors or {"White", "Yellow", "Red", "Teal", "Pink"}
+        for _, p in ipairs(ordered) do
+            for _, c in ipairs(colors) do
+                if p.color == c then
+                    n = n + 1
+                    break
+                end
+            end
+        end
         if n >= 2 and n <= 4 then
             return n + 1
-        end
-        local players = Player.getPlayers() or {}
-        local pn = #players
-        if pn >= 1 then
-            return pn + 1
         end
         local dbg = Global.getVar("debug_player_count") or 3
         return dbg + 1
     end
-    local init_lcount = Global.getVar("leader_draft_count") or initial_resolved_default_count()
-    local init_locount = Global.getVar("lore_draft_count") or initial_resolved_default_count()
-    leaderCountDisplay_params.label = "Leaders: \n" .. tostring(init_lcount)
-    loreCountDisplay_params.label = "Lore: \n" .. tostring(init_locount)
+    local stored_lcount = Global.getVar("leader_draft_count")
+    local stored_locount = Global.getVar("lore_draft_count")
+    leaderCountDisplay_params.label = "Leaders: \n" .. (stored_lcount and tostring(stored_lcount) or "Default")
+    loreCountDisplay_params.label = "Lore: \n" .. (stored_locount and tostring(stored_locount) or "Default")
 
     self.createButton(optionsText_params)
     self.createButton(toggleLeadersWITHOUT_params)
@@ -620,26 +625,37 @@ function onload()
 
     -- Initialize numeric display labels from globals (resolve default if nil)
     local function resolved_default_count()
-        local active = Global.getTable("active_players") or {}
-        local n = #active
+        -- Prefer seated players in allowed `available_colors` for defaults
+        local ordered = Global.call("getOrderedPlayers") or {}
+        local n = 0
+        local colors = available_colors or {"White", "Yellow", "Red", "Teal", "Pink"}
+        for _, p in ipairs(ordered) do
+            for _, c in ipairs(colors) do
+                if p.color == c then
+                    n = n + 1
+                    break
+                end
+            end
+        end
         if n >= 2 and n <= 4 then
             return n + 1
-        end
-        local players = Player.getPlayers() or {}
-        local pn = #players
-        if pn >= 1 then
-            return pn + 1
         end
         local dbg = Global.getVar("debug_player_count") or 3
         return dbg + 1
     end
-    local lcount = Global.getVar("leader_draft_count") or resolved_default_count()
-    local locount = Global.getVar("lore_draft_count") or resolved_default_count()
-    Global.setVar("leader_draft_count", lcount)
-    Global.setVar("lore_draft_count", locount)
-    -- Ensure buttons reflect final values (in case globals changed elsewhere)
-    self.editButton({index=12, label = "Leaders: \n" .. tostring(lcount)})
-    self.editButton({index=15, label = "Lore: \n" .. tostring(locount)})
+    local lcount = Global.getVar("leader_draft_count")
+    local locount = Global.getVar("lore_draft_count")
+    -- Ensure buttons reflect stored values; show "Default" when unset
+    if lcount then
+        self.editButton({index=12, label = "Leaders: \n" .. tostring(lcount)})
+    else
+        self.editButton({index=12, label = "Leaders: \nDefault"})
+    end
+    if locount then
+        self.editButton({index=15, label = "Lore: \n" .. tostring(locount)})
+    else
+        self.editButton({index=15, label = "Lore: \nDefault"})
+    end
     -- Initialize setup choice display
     do
         local sc_index = Global.getVar("setup_choice_index") or 0
@@ -816,15 +832,20 @@ end
 -- Leader/Lore draft count controls
 -- Resolve a sensible default (player_count + 1) using active players or debug fallback
 local function resolved_default_count()
-    local active = Global.getTable("active_players") or {}
-    local n = #active
+    -- Prefer seated players in allowed `available_colors` for defaults
+    local ordered = Global.call("getOrderedPlayers") or {}
+    local n = 0
+    local colors = available_colors or {"White", "Yellow", "Red", "Teal", "Pink"}
+    for _, p in ipairs(ordered) do
+        for _, c in ipairs(colors) do
+            if p.color == c then
+                n = n + 1
+                break
+            end
+        end
+    end
     if n >= 2 and n <= 4 then
         return n + 1
-    end
-    local players = Player.getPlayers() or {}
-    local pn = #players
-    if pn >= 1 then
-        return pn + 1
     end
     local dbg = Global.getVar("debug_player_count") or 3
     return dbg + 1

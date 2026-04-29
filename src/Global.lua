@@ -592,6 +592,30 @@ function getOrderedPlayers()
 end
 
 
+  -- Returns ordered players but rotated so that `start` is first.
+  -- `start` may be a color string (e.g., "Red") or a 1-based index.
+  function getOrderedPlayersStartingWith(start)
+    local ordered = getOrderedPlayers()
+    if not start or #ordered == 0 then return ordered end
+
+    local start_index = nil
+    if type(start) == "string" then
+      for i, p in ipairs(ordered) do
+        if p.color == start then start_index = i; break end
+      end
+    elseif type(start) == "number" then
+      if start >= 1 and start <= #ordered then start_index = start end
+    end
+
+    if not start_index then return ordered end
+
+    local rotated = {}
+    for j = start_index, #ordered do table.insert(rotated, ordered[j]) end
+    for j = 1, start_index - 1 do table.insert(rotated, ordered[j]) end
+    return rotated
+  end
+
+
 ----------------------------------------------------
 
 starting_locations = {

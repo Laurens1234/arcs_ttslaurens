@@ -86,7 +86,17 @@ end
 
 function Campaign.setup(with_leaders, with_ll_expansion, with_miniatures)
 
-    local active_players = Global.call("getOrderedPlayers")
+    local init_choice_color = Global.getVar("initiative_choice_color")
+    local init_choice_index = Global.getVar("initiative_choice_index") or 0
+
+    local active_players
+    if init_choice_color then
+        active_players = Global.call("getOrderedPlayersStartingWith", init_choice_color)
+    elseif init_choice_index and init_choice_index >= 1 then
+        active_players = Global.call("getOrderedPlayersStartingWith", init_choice_index)
+    else
+        active_players = Global.call("getOrderedPlayers")
+    end
     Global.setVar("active_players", active_players)
     if (#active_players < 2 or #active_players > 5) then
         return false
@@ -115,16 +125,17 @@ function Campaign.setup(with_leaders, with_ll_expansion, with_miniatures)
     local init_choice_color = Global.getVar("initiative_choice_color")
     local init_choice_index = Global.getVar("initiative_choice_index") or 0
     local init_choice_pcount = Global.getVar("initiative_choice_player_count")
-    local chosen_color
-    if init_choice_color then
-        for _, p in ipairs(active_players) do
-            if p.color == init_choice_color then chosen_color = p.color; break end
-        end
-    elseif init_choice_index and init_choice_index >= 1 and init_choice_pcount == #active_players and init_choice_index <= #active_players then
-        chosen_color = active_players[init_choice_index].color
-    end
     if not chosen_color then
-        chosen_color = active_players[math.random(#active_players)].color
+        if init_choice_color then
+            for _, p in ipairs(active_players) do
+                if p.color == init_choice_color then chosen_color = p.color; break end
+            end
+        elseif init_choice_index and init_choice_index >= 1 and init_choice_pcount == #active_players and init_choice_index <= #active_players then
+            chosen_color = active_players[init_choice_index].color
+        end
+        if not chosen_color then
+            chosen_color = active_players[math.random(#active_players)].color
+        end
     end
     initiative.take(chosen_color)
     Campaign.setup_regents(active_players)

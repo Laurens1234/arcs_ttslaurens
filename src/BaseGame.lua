@@ -409,7 +409,20 @@ end
 
 function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
 
-    local active_players = Global.call("getOrderedPlayers")
+    local init_choice_color = Global.getVar("initiative_choice_color")
+    local init_choice_index = Global.getVar("initiative_choice_index") or 0
+
+    -- Prefer using Global to compute the ordered players starting with
+    -- the chosen player (if present) so rotation happens in the Global
+    -- script and avoids cross-script resource operations.
+    local active_players
+    if init_choice_color then
+        active_players = Global.call("getOrderedPlayersStartingWith", init_choice_color)
+    elseif init_choice_index and init_choice_index >= 1 then
+        active_players = Global.call("getOrderedPlayersStartingWith", init_choice_index)
+    else
+        active_players = Global.call("getOrderedPlayers")
+    end
     Global.setVar("active_players", active_players)
     if (#active_players < 2 or #active_players > 5) then
         return false
@@ -446,17 +459,19 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
     local init_choice_color = Global.getVar("initiative_choice_color")
     local init_choice_index = Global.getVar("initiative_choice_index") or 0
     local init_choice_pcount = Global.getVar("initiative_choice_player_count")
-    local chosen_color
-    if init_choice_color then
-        -- use explicit color if it matches an active player
-        for _, p in ipairs(active_players) do
-            if p.color == init_choice_color then chosen_color = p.color; break end
-        end
-    elseif init_choice_index and init_choice_index >= 1 and init_choice_pcount == #active_players and init_choice_index <= #active_players then
-        chosen_color = active_players[init_choice_index].color
-    end
+    -- `chosen_color` may have been computed earlier when we rotated players;
+    -- if not, try to derive it here, otherwise pick randomly.
     if not chosen_color then
-        chosen_color = active_players[math.random(#active_players)].color
+        if init_choice_color then
+            for _, p in ipairs(active_players) do
+                if p.color == init_choice_color then chosen_color = p.color; break end
+            end
+        elseif init_choice_index and init_choice_index >= 1 and init_choice_pcount == #active_players and init_choice_index <= #active_players then
+            chosen_color = active_players[init_choice_index].color
+        end
+        if not chosen_color then
+            chosen_color = active_players[math.random(#active_players)].color
+        end
     end
     initiative.take(chosen_color)
 
@@ -1414,8 +1429,29 @@ function BaseGame.dealLeaders(player_count)
         z = -2.5
     }
 
-    local leader_qty = Global.getVar("leader_draft_count") or (player_count + 1)
-    local lore_qty = Global.getVar("lore_draft_count") or (player_count + 1)
+    local leader_qty = Global.getVar("leader_draft_count")
+    local lore_qty = Global.getVar("lore_draft_count")
+    if not leader_qty or not lore_qty then
+        local ordered = Global.call("getOrderedPlayers") or {}
+        local n = 0
+        local colors = available_colors or {"White", "Yellow", "Red", "Teal", "Pink"}
+        for _, p in ipairs(ordered) do
+            for _, c in ipairs(colors) do
+                if p.color == c then
+                    n = n + 1
+                    break
+                end
+            end
+        end
+        local default_count
+        if n >= 1 then
+            default_count = n + 1
+        else
+            default_count = (Global.getVar("debug_player_count") or 3) + 1
+        end
+        leader_qty = leader_qty or default_count
+        lore_qty = lore_qty or default_count
+    end
 
     -- Place leaders in rows of 5. If >5, wrap to a row above (increasing z).
     local cols = 5
