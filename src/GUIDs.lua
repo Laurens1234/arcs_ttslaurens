@@ -1,5 +1,8 @@
 reach_board_GUID = "bb7d21"
 
+setup_control_2 = "42caeb"
+setup_control_3 = "5dc1e0"
+
 -- leaders and lore
 more_to_explore_fate_GUID = "768d3d"
 more_to_explore_lore_GUID = "3441e5"

@@ -9,6 +9,7 @@ local BLACK = {0.05, 0.05, 0.05}
 local GREEN = {0.2, 0.5, 0.2}
 local PURPLE = {0.5, 0.3, 0.7}
 local RED = {0.8, 0.3, 0.2}
+local LIGHT_GREY = {0.8, 0.8, 0.8}
 local HEADER_FONT_SIZE = 170
 local HEADER_SCALE = {0.6, 0.6, 0.6}
 local HEADER_WIDTH = 0
@@ -153,19 +154,20 @@ local miniaturesENABLED_params = {
     font_color = BLACK,
     hover_color = RED
 }
+
 local toggleLaurensEXCLUDE_params = {
     index = 9,
     click_function = "toggle_laurens_custom",
     function_owner = self,
     label = " Celestial Leaders\n Expansion",
     tooltip = "Include Celestial Leaders Expansion made by Laurens https://laurens1234.github.io/arcs-arsenal/custom-cards",
-    position = {-1.54, 0.5, 0.88},
+    position = {-1.54, 0.5, 2.32},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = BLACK,
-    font_color = GOLD,
+    color = {0.04803921568627451, 0.159803921568627451, 0.3392156862745098},
+    font_color = LIGHT_GREY,
     hover_color = GREEN
 }
 local toggleLaurensINCLUDE_params = {
@@ -174,7 +176,7 @@ local toggleLaurensINCLUDE_params = {
     function_owner = self,
     label = "Celestial Leaders\n Expansion",
     tooltip = "Exclude Celestial Leaders Expansion made by Laurens https://laurens1234.github.io/arcs-arsenal/custom-cards",
-    position = {-1.54, 0.5, 0.88},
+    position = {-1.54, 0.5, 2.32},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -189,7 +191,7 @@ local toggleDontUseBasePackEXCLUDE_params = {
     function_owner = self,
     label = " Don't use\n Base & Pack Leaders",
     tooltip = "Remove base and pack leaders from setup",
-    position = {-1.54, 0.5, 1.45},
+    position = {-1.54, 0.5, 1.16},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -204,7 +206,7 @@ local toggleDontUseBasePackINCLUDE_params = {
     function_owner = self,
     label = " Don't use\n Base & Pack Leaders",
     tooltip = "Restore base and pack leaders in setup",
-    position = {-1.54, 0.5, 1.45},
+    position = {-1.54, 0.5, 0.45},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -219,7 +221,7 @@ local leaderCountDec_params = {
     function_owner = self,
     label = "-",
     tooltip = "Decrease leader draft count",
-    position = {-1.82, 0.5, -0.59},
+    position = {-1.82, 0.5, 0},
     width = 330,
     height = 250,
     font_size = 170,
@@ -234,7 +236,7 @@ local leaderCountDisplay_params = {
     function_owner = self,
     label = "",
     tooltip = "Leader draft count",
-    position = {-1.51, 0.5, -0.59},
+    position = {-1.51, 0.5, 0},
     width = 300,
     height = 220,
     font_size = 170,
@@ -248,7 +250,7 @@ local leaderCountInc_params = {
     function_owner = self,
     label = "+",
     tooltip = "Increase leader draft count",
-    position = {-1.2, 0.5, -0.59},
+    position = {-1.2, 0.5, 0},
     width = 330,
     height = 250,
     font_size = 170,
@@ -263,7 +265,7 @@ local loreCountDec_params = {
     function_owner = self,
     label = "-",
     tooltip = "Decrease lore draft count",
-    position = {-1.82, 0.5, 0},
+    position = {-1.82, 0.5, 0.59},
     width = 330,
     height = 250,
     font_size = 170,
@@ -278,7 +280,7 @@ local loreCountDisplay_params = {
     function_owner = self,
     label = "",
     tooltip = "Lore draft count",
-    position = {-1.51, 0.5, 0},
+    position = {-1.51, 0.5, 0.59},
     width = 300,
     height = 220,
     font_size = 170,
@@ -292,7 +294,7 @@ local loreCountInc_params = {
     function_owner = self,
     label = "+",
     tooltip = "Increase lore draft count",
-    position = {-1.2, 0.5, 0},
+    position = {-1.2, 0.5, 0.59},
     width = 330,
     height = 250,
     font_size = 170,
@@ -305,14 +307,14 @@ local setDefault_params = {
     index = 17,
     click_function = "set_default_counts",
     function_owner = self,
-    label = "Set default",
+    label = "Set default\nL&L count",
     tooltip = "Set Leaders and Lore to player_count + 1",
-    -- position above the Leaders display (same column, one row up)
-    position = {-1.51, 0.5, -1.0},
-    width = 1200,
-    height = 400,
-    font_size = 170,
-    scale = {0.3,0.3,0.3},
+    -- position: directly to the left of the Leaders toggle, matching gap to Base Game
+    position = {-1.54, 0.5, -0.59},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
     color = GREEN,
     font_color = BLACK,
     hover_color = PURPLE
@@ -324,11 +326,11 @@ local setupChoice_params = {
     label = "Setup: Random",
     tooltip = "Cycle chosen setup for current player count (Random -> option -> ... -> Random)",
     -- position to the left of the Set default button (moved further left)
-    position = {-2.30, 0.5, -1.0},
-    width = 1200,
-    height = 400,
-    font_size = 150,
-    scale = {0.3,0.3,0.3},
+    position = {-2.56, 0.5, -0.59},--{0.52, 0.5, -0.59},{-0.51, 0.5, -0.59}--1.54, 0.5, -0.59},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
     color = GREEN,
     font_color = BLACK,
     hover_color = PURPLE
@@ -340,11 +342,11 @@ local initiativeChoice_params = {
     label = "Initiative: Random",
     tooltip = "Choose which player color gets initiative at game start (Random -> player -> ...)",
     -- positioned to the right of the setup chooser (same column)
-    position = {-2.30, 0.5, -0.65},
-    width = 1200,
-    height = 400,
-    font_size = 140,
-    scale = {0.3,0.3,0.3},
+    position = {-2.56, 0.5, 0}, -- {0.52, 0.5, 0},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
     color = GREEN,
     font_color = BLACK,
     hover_color = PURPLE
@@ -411,13 +413,13 @@ local toggleScavengersEXCLUDE_params = {
     function_owner = self,
     label = "PnP#1 Scavengers\n & Scouts Deck",
     tooltip = "Include PnP#1 Scavengers & Scouts deck in setup intead of base court deck",
-    position = {-0.51, 0.5, 2.03},
+    position = {-0.51, 0.5, 2.32},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = BLACK,
-    font_color = GOLD,
+    color = {0.4235294117647059, 0.13725490196078433, 0.08627450980392157},
+    font_color = LIGHT_GREY,
     hover_color = GREEN
 }
 local toggleScavengersINCLUDE_params = {
@@ -426,7 +428,7 @@ local toggleScavengersINCLUDE_params = {
     function_owner = self,
     label = "PnP#1 Scavengers\n & Scouts Deck",
     tooltip = "Exclude PnP#1 Scavengers & Scouts deck from setup",
-    position = {-0.51, 0.5, 2.03},
+    position = {-0.51, 0.5, 2.32},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -441,13 +443,13 @@ local togglePnp3EXCLUDE_params = {
     function_owner = self,
     label = " PnP#3\n Fated Leaders",
     tooltip = "Include PnP#3 fated leader deck in setup",
-    position = {-0.51, 0.5, 3.18},
+    position = {-0.51, 0.5, 3.47},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = BLACK,
-    font_color = GOLD,
+    color = {0.4235294117647059, 0.13725490196078433, 0.08627450980392157},
+    font_color = LIGHT_GREY,
     hover_color = GREEN
 }
 local togglePnp3INCLUDE_params = {
@@ -456,7 +458,7 @@ local togglePnp3INCLUDE_params = {
     function_owner = self,
     label = " PnP#3\n Fated Leaders",
     tooltip = "Exclude PnP#3 fated leader deck from setup",
-    position = {-0.51, 0.5, 3.18},
+    position = {-0.51, 0.5, 3.47},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -471,13 +473,13 @@ local togglePnp2EXCLUDE_params = {
     function_owner = self,
     label = " PnP#2\n Lost Vaults",
     tooltip = "Include PnP#2 Lost Vaults in setup",
-    position = {-0.51, 0.5, 2.61},
+    position = {-0.51, 0.5, 2.9},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = BLACK,
-    font_color = GOLD,
+    color = {0.4235294117647059, 0.13725490196078433, 0.08627450980392157},
+    font_color = LIGHT_GREY,
     hover_color = GREEN
 }
 local togglePnp2INCLUDE_params = {
@@ -486,7 +488,7 @@ local togglePnp2INCLUDE_params = {
     function_owner = self,
     label = " PnP#2\n Lost Vaults",
     tooltip = "Exclude PnP#2 Lost Vaults from setup",
-    position = {-0.51, 0.5, 2.61},
+    position = {-0.51, 0.5, 2.9},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -494,6 +496,63 @@ local togglePnp2INCLUDE_params = {
     color = GOLD,
     font_color = BLACK,
     hover_color = RED
+}
+
+local beyondTheReach_params = {
+    index = 23,
+    click_function = "doNothing",
+    function_owner = self,
+    label = "Beyond \nthe Reach",
+    tooltip = "",
+    position = {-0.51, 0.5, 1.77},
+    width = HEADER_WIDTH,
+    height = HEADER_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = HEADER_SCALE,
+    color = BLACK,
+    font_color = GOLD,
+}
+local celestial_params = {
+    index = 24,
+    click_function = "doNothing",
+    function_owner = self,
+    label = "Celestial",
+    tooltip = "",
+    position = {-1.54, 0.5, 1.77},
+    width = HEADER_WIDTH,
+    height = HEADER_HEIGHT,
+    font_size = HEADER_FONT_SIZE,
+    scale = HEADER_SCALE,
+    color = BLACK,
+    font_color = GOLD,
+}
+local leader_lore_controls_header_params = {
+    index = 25,
+    click_function = "doNothing",
+    function_owner = self,
+    label = "L&L\nOptions",
+    tooltip = "",
+    position = {-1.54, 0.5, -1.15},--{0.52, 0.5, -1.15},{0.52, 0.5, -1.15}{-0.51, 0.5, 1.77},{-2.56, 0.5, 0}
+    width = HEADER_WIDTH,
+    height = HEADER_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = HEADER_SCALE,
+    color = BLACK,
+    font_color = GOLD,
+}
+local setup_controls_header_params = {
+    index = 26,
+    click_function = "doNothing",
+    function_owner = self,
+    label = "Setup\nOptions",
+    tooltip = "",
+    position = {-2.56, 0.5, -1.15},
+    width = HEADER_WIDTH,
+    height = HEADER_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = HEADER_SCALE,
+    color = BLACK,
+    font_color = GOLD,
 }
 SetupControl = {
     setup_control_guid = "7299d7",
@@ -553,6 +612,10 @@ function onload()
     self.createButton(togglePnp3EXCLUDE_params)
     self.createButton(setupChoice_params)
     self.createButton(initiativeChoice_params)
+    self.createButton(beyondTheReach_params)
+    self.createButton(celestial_params)
+    self.createButton(leader_lore_controls_header_params)
+    self.createButton(setup_controls_header_params)    
     -- must add buttons in the order of the actual indices !!!!!!!!!!
 
     -- Initialize numeric display labels from globals (resolve default if nil)
@@ -881,11 +944,39 @@ function setup_base_game()
         Global.getVar("with_miniatures"))
 
     if (base_setup_success and Global.getVar("with_leaders") and not Global.getVar("with_pnp2_lost_vaults")) then
+        local sc2obj = nil
+        if setup_control_2 ~= nil then
+            sc2obj = getObjectFromGUID(setup_control_2)
+        end
+        if sc2obj then
+            destroyObject(sc2obj)
+        end
+        local sc3obj = nil
+        if setup_control_3 ~= nil then
+            sc3obj = getObjectFromGUID(setup_control_3)
+        end
+        if sc3obj then
+            destroyObject(sc3obj)
+        end
         leader_buttons()
         return
     end
 
     if (base_setup_success) then
+        local sc2obj = nil
+        if setup_control_2 ~= nil then
+            sc2obj = getObjectFromGUID(setup_control_2)
+        end
+        if sc2obj then
+            destroyObject(sc2obj)
+        end
+        local sc3obj = nil
+        if setup_control_3 ~= nil then
+            sc3obj = getObjectFromGUID(setup_control_3)
+        end
+        if sc3obj then
+            destroyObject(sc3obj)
+        end
         destroyObject(self)
     end
 
@@ -910,12 +1001,40 @@ function setup_campaign()
         Global.getVar("with_miniatures"))
 
     if (campaign_setup_success) then
+        local sc2obj = nil
+        if setup_control_2 ~= nil then
+            sc2obj = getObjectFromGUID(setup_control_2)
+        end
+        if sc2obj then
+            destroyObject(sc2obj)
+        end
+        local sc3obj = nil
+        if setup_control_3 ~= nil then
+            sc3obj = getObjectFromGUID(setup_control_3)
+        end
+        if sc3obj then
+            destroyObject(sc3obj)
+        end
         destroyObject(self)
     end
 end
 
 function custom_setup()
     Global.call("setup_custom_game")
+    local sc2obj = nil
+    if setup_control_2 ~= nil then
+        sc2obj = getObjectFromGUID(setup_control_2)
+    end
+    if sc2obj then
+        destroyObject(sc2obj)
+    end
+    local sc3obj = nil
+    if setup_control_3 ~= nil then
+        sc3obj = getObjectFromGUID(setup_control_3)
+    end
+    if sc3obj then
+        destroyObject(sc3obj)
+    end
     destroyObject(self)
 end
 
@@ -941,7 +1060,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 20 do
+    for i = 0, 24 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)
