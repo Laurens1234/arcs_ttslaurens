@@ -355,6 +355,7 @@ function ActionCards.get_surpassing_card()
 
     LOG.DEBUG("get_surpassing_card: lead card is " .. tostring(lead.type) .. " " .. tostring(lead.number) .. " (guid=" .. tostring(lead.guid) .. ")")
     local found_mandate_surpass = false
+    local numeric_surpass_found = false
     for _, v in ipairs(played_zone.getObjects()) do
         if (v.guid == lead.guid) then
             LOG.DEBUG("Skipping lead card itself (guid=" .. tostring(v.guid) .. ")")
@@ -375,15 +376,18 @@ function ActionCards.get_surpassing_card()
             end
             if card then
                 if lead.number == 0 then
-                    -- Mandate lead: any card can surpass, highest number wins
+                    -- Mandate lead: numeric cards outrank mandates; highest numeric wins.
+                    -- Mandates only count if no numeric cards are played.
                     LOG.DEBUG("Mandate lead: comparing card.number=" .. tostring(card.number) .. " to max_surpassing_number=" .. tostring(max_surpassing_number))
-                    if card.number > max_surpassing_number then
-                        LOG.DEBUG("Mandate surpass: setting surpassing_card to " .. tostring(card.type) .. " " .. tostring(card.number) .. " (guid=" .. tostring(card.guid) .. ")")
-                        max_surpassing_number = card.number
-                        surpassing_card = card
-                        found_mandate_surpass = false
-                    elseif card.number == 0 and not found_mandate_surpass then
-                        -- First non-lead Mandate card found: assign as surpassing_card
+                    if card.number > 0 then
+                        if card.number > max_surpassing_number then
+                            LOG.DEBUG("Mandate surpass (numeric): setting surpassing_card to " .. tostring(card.type) .. " " .. tostring(card.number) .. " (guid=" .. tostring(card.guid) .. ")")
+                            max_surpassing_number = card.number
+                            surpassing_card = card
+                            numeric_surpass_found = true
+                        end
+                    elseif card.number == 0 and not numeric_surpass_found and not found_mandate_surpass then
+                        -- No numeric surpass yet: first non-lead Mandate card found wins among mandates
                         LOG.DEBUG("Mandate tie-break: first non-lead Mandate card found, setting surpassing_card to " .. tostring(card.type) .. " (guid=" .. tostring(card.guid) .. ")")
                         surpassing_card = card
                         found_mandate_surpass = true
