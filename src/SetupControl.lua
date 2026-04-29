@@ -166,8 +166,9 @@ local toggleLaurensEXCLUDE_params = {
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = {0.04803921568627451, 0.159803921568627451, 0.3392156862745098},
-    font_color = LIGHT_GREY,
+    --color = {0.04803921568627451, 0.159803921568627451, 0.3392156862745098},
+    color = BLACK,
+    font_color = GOLD,
     hover_color = GREEN
 }
 local toggleLaurensINCLUDE_params = {
@@ -221,7 +222,7 @@ local leaderCountDec_params = {
     function_owner = self,
     label = "-",
     tooltip = "Decrease leader draft count",
-    position = {-1.82, 0.5, 0},
+    position = {-1.85, 0.5, 0},
     width = 330,
     height = 250,
     font_size = 170,
@@ -236,7 +237,7 @@ local leaderCountDisplay_params = {
     function_owner = self,
     label = "",
     tooltip = "Leader draft count",
-    position = {-1.51, 0.5, 0},
+    position = {-1.54, 0.5, 0},
     width = 300,
     height = 220,
     font_size = 170,
@@ -250,7 +251,7 @@ local leaderCountInc_params = {
     function_owner = self,
     label = "+",
     tooltip = "Increase leader draft count",
-    position = {-1.2, 0.5, 0},
+    position = {-1.23, 0.5, 0},
     width = 330,
     height = 250,
     font_size = 170,
@@ -265,7 +266,7 @@ local loreCountDec_params = {
     function_owner = self,
     label = "-",
     tooltip = "Decrease lore draft count",
-    position = {-1.82, 0.5, 0.59},
+    position = {-1.85, 0.5, 0.59},
     width = 330,
     height = 250,
     font_size = 170,
@@ -280,7 +281,7 @@ local loreCountDisplay_params = {
     function_owner = self,
     label = "",
     tooltip = "Lore draft count",
-    position = {-1.51, 0.5, 0.59},
+    position = {-1.54, 0.5, 0.59},
     width = 300,
     height = 220,
     font_size = 170,
@@ -294,7 +295,7 @@ local loreCountInc_params = {
     function_owner = self,
     label = "+",
     tooltip = "Increase lore draft count",
-    position = {-1.2, 0.5, 0.59},
+    position = {-1.23, 0.5, 0.59},
     width = 330,
     height = 250,
     font_size = 170,
@@ -418,8 +419,9 @@ local toggleScavengersEXCLUDE_params = {
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = {0.4235294117647059, 0.13725490196078433, 0.08627450980392157},
-    font_color = LIGHT_GREY,
+    color = BLACK,
+    font_color = GOLD,
+    -- border = {0.4235294117647059, 0.13725490196078433, 0.08627450980392157},
     hover_color = GREEN
 }
 local toggleScavengersINCLUDE_params = {
@@ -448,8 +450,8 @@ local togglePnp3EXCLUDE_params = {
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = {0.4235294117647059, 0.13725490196078433, 0.08627450980392157},
-    font_color = LIGHT_GREY,
+    color = BLACK,
+    font_color = GOLD,
     hover_color = GREEN
 }
 local togglePnp3INCLUDE_params = {
@@ -478,8 +480,8 @@ local togglePnp2EXCLUDE_params = {
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
     scale = BUTTON_SCALE,
-    color = {0.4235294117647059, 0.13725490196078433, 0.08627450980392157},
-    font_color = LIGHT_GREY,
+    color = BLACK,
+    font_color = GOLD,
     hover_color = GREEN
 }
 local togglePnp2INCLUDE_params = {
@@ -590,8 +592,8 @@ function onload()
     end
     local stored_lcount = Global.getVar("leader_draft_count")
     local stored_locount = Global.getVar("lore_draft_count")
-    leaderCountDisplay_params.label = "Leaders: \n" .. (stored_lcount and tostring(stored_lcount) or "Default")
-    loreCountDisplay_params.label = "Lore: \n" .. (stored_locount and tostring(stored_locount) or "Default")
+    leaderCountDisplay_params.label = "Leaders:\n" .. (stored_lcount and tostring(stored_lcount) or "Default")
+    loreCountDisplay_params.label = "Lore:\n" .. (stored_locount and tostring(stored_locount) or "Default")
 
     self.createButton(optionsText_params)
     self.createButton(toggleLeadersWITHOUT_params)
@@ -647,14 +649,14 @@ function onload()
     local locount = Global.getVar("lore_draft_count")
     -- Ensure buttons reflect stored values; show "Default" when unset
     if lcount then
-        self.editButton({index=12, label = "Leaders: \n" .. tostring(lcount)})
+        self.editButton({index=12, label = "Leaders:\n" .. tostring(lcount)})
     else
-        self.editButton({index=12, label = "Leaders: \nDefault"})
+        self.editButton({index=12, label = "Leaders:\nDefault"})
     end
     if locount then
-        self.editButton({index=15, label = "Lore: \n" .. tostring(locount)})
+        self.editButton({index=15, label = "Lore:\n" .. tostring(locount)})
     else
-        self.editButton({index=15, label = "Lore: \nDefault"})
+        self.editButton({index=15, label = "Lore:\nDefault"})
     end
     -- Initialize setup choice display
     do
@@ -860,7 +862,7 @@ function change_leader_count(obj, color, delta)
     if not current then current = resolved_default_count() end
     local count = math.max(1, math.min(100, current + delta))
     Global.setVar("leader_draft_count", count)
-    self.editButton({index=12, label="Leaders: \n" .. display_count_label(count)})
+    self.editButton({index=12, label="Leaders:\n" .. display_count_label(count)})
 end
 
 function change_lore_count(obj, color, delta)
@@ -868,7 +870,7 @@ function change_lore_count(obj, color, delta)
     if not current then current = resolved_default_count() end
     local count = math.max(1, math.min(28, current + delta))
     Global.setVar("lore_draft_count", count)
-    self.editButton({index=15, label="Lore: \n" .. display_count_label(count)})
+    self.editButton({index=15, label="Lore:\n" .. display_count_label(count)})
 end
 
 function leader_count_dec(obj, color, alt_click)
@@ -892,8 +894,8 @@ function set_default_counts(obj, color, alt_click)
     Global.setVar("leader_draft_count", def)
     Global.setVar("lore_draft_count", def)
     -- Update displays with prefixes
-    self.editButton({index=12, label = "Leaders: \n" .. tostring(def)})
-    self.editButton({index=15, label = "Lore: \n" .. tostring(def)})
+    self.editButton({index=12, label = "Leaders:\n" .. tostring(def)})
+    self.editButton({index=15, label = "Lore:\n" .. tostring(def)})
 end
 
 function cycle_setup_choice(obj, color, alt_click)
