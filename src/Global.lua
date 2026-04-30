@@ -1712,7 +1712,9 @@ function setup_custom_game()
         table.insert(active_players, ArcsPlayer:new{ color = v })
       end
     end
+    local active_player_colors = {}
     for _, v in ipairs(active_players) do
+      table.insert(active_player_colors, v.color)
       ArcsPlayer.components_visibility(v.color, true, true)
     end
 
@@ -1727,7 +1729,7 @@ function setup_custom_game()
       leaders_and_lore_expansion = true,
       with_faceup_discard = true,
       with_miniatures = with_miniatures,
-      players = {"Red", "White", "Yellow", "Teal", "Pink"}
+      players = active_player_colors
     }
     set_game_in_progress(p)
 
