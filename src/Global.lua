@@ -495,9 +495,75 @@ function tryObjectEnterContainer(container, object)
   if not locked then return true end
 
   -- For locked bags, require at least one matching tag (preserve original behavior)
+  -- First, enforce supply-bag color matching for ships/agents/starports.
+  -- If the container GUID matches any player supply bag, only allow objects
+  -- whose name contains that color (e.g., 'White Agent', 'Red Ship').
+  local ok_guid, cguid = pcall(function() return container.getGUID and container.getGUID() or container.guid end)
+    if ok_guid and cguid then
+      -- If this is the imperial ships supply, only allow Imperial Ship objects
+      if cguid == imperial_ships_GUID then
+        local ok_name, name = pcall(function() return object.getName and object.getName() end)
+        if not ok_name or not name then
+          return false
+        end
+        local name_lower = string.lower(tostring(name))
+        if string.find(name_lower, "imperial ship") then
+          return true
+        else
+          return false
+        end
+      end
+
+      for color, tbl in pairs(player_pieces_GUIDs) do
+      -- check keys that represent supply bags
+      local bag_keys = {"agents", "mini_agents", "ships", "mini_ships", "starports"}
+      -- map bag key to allowed object type
+      local allowed_type_for_key = {
+        agents = "agent",
+        mini_agents = "agent",
+        ships = "ship",
+        mini_ships = "ship",
+        starports = "starport",
+      }
+      for _, key in ipairs(bag_keys) do
+        local bag_guid = tbl[key]
+        if bag_guid and bag_guid == cguid then
+          -- enforce color and type match based on object name
+          local ok_name, name = pcall(function() return object.getName and object.getName() end)
+          if not ok_name or not name then
+            return false
+          end
+          local name_lower = string.lower(tostring(name))
+          local color_lower = string.lower(color)
+          -- color must match
+          if not string.find(name_lower, color_lower) then
+            return false
+          end
+          -- determine object type from name
+          local obj_type = nil
+          if string.find(name_lower, "ship") then obj_type = "ship" end
+          if string.find(name_lower, "agent") then obj_type = "agent" end
+          if string.find(name_lower, "starport") then obj_type = "starport" end
+          -- disallow placing when type doesn't match bag purpose
+          local allowed = allowed_type_for_key[key]
+          if allowed then
+            if obj_type == allowed then
+              return true
+            else
+              return false
+            end
+          end
+          -- if no specific allowed type, fall back to color-only match
+          return true
+        end
+      end
+    end
+  end
+
+  -- Fallback: For other locked bags, require at least one matching tag (preserve original behavior)
   for _, tag in ipairs(container.getTags()) do
     if tag == "TealPiece" or tag == "YellowPiece" or tag == "RedPiece" or tag ==
-      "WhitePiece" or tag == "lock" then -- adding PinkPiece here stop all bags from working idk why
+      "WhitePiece" or tag == "lock" then
       goto continue
     end
 
