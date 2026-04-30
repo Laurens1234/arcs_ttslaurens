@@ -138,12 +138,12 @@ function start_chapter()
     local available_colors = {"White", "Yellow", "Red", "Teal", "Pink"}
 
     --------------------------------------------------------------------
-    -- STEP 1: GET DECK
+    -- STEP 1: GET DECK (use ActionCards helper which scans the zone)
     --------------------------------------------------------------------
-    local deck = Global.getVar("action_deck") or getObjectFromGUID(action_deck_GUID)
+    local deck = ActionCards.get_action_deck()
 
     if not deck then
-        print("ERROR: Action deck not found")
+        print("ERROR: Action deck not found in action deck zone")
         return
     end
 

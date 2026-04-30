@@ -72,10 +72,25 @@ function ActionCards.get_action_deck()
     local action_deck_zone_objects = action_deck_zone.getObjects()
 
     if (action_deck_zone_objects) then
+        -- Prefer a Deck object, but fall back to a single Card (when deck reduced to 1)
+        local found_card_guid = nil
         for _, v in ipairs(action_deck_zone_objects) do
-            if (v.name == "Deck") then
+            if v.tag == "Deck" or v.name == "Deck" then
                 action_deck_GUID = v.guid
+                return getObjectFromGUID(action_deck_GUID)
             end
+            -- remember any single card fallback; prefer cards that look like action cards
+            if v.tag == "Card" then
+                if not found_card_guid then found_card_guid = v.guid end
+                if (v.getName and v.getName() == "Action Card") or (v.hasTag and v.hasTag("Action")) then
+                    found_card_guid = v.guid
+                    break
+                end
+            end
+        end
+        if found_card_guid then
+            action_deck_GUID = found_card_guid
+            return getObjectFromGUID(action_deck_GUID)
         end
     end
 

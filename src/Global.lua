@@ -529,8 +529,8 @@ end
 
 ----------------------------------------------------
 -- returns a table of colors in order
-function getOrderedPlayers()
-    local seated_players = getSeatedPlayers()
+function getOrderedPlayers(silent)
+  local seated_players = getSeatedPlayers()
     if (debug and #seated_players == 1) then
         broadcastToAll("\nDebugging enabled for " .. debug_player_count ..
                            " players.")
@@ -558,15 +558,17 @@ function getOrderedPlayers()
 
     local player_count = #seated_players
     if (player_count > 5 or player_count < 2) then
-      msg = "This multiplayer game will only start with 2-5 players. " ..
-        "\nTo explore the mod solo, return to main menu, create the game as 'hotseat', " ..
-        "load the mod from the Games menu, then pick player colors last."
+      if not silent then
+        msg = "This multiplayer game will only start with 2-5 players. " ..
+          "\nTo explore the mod solo, return to main menu, create the game as 'hotseat', " ..
+          "load the mod from the Games menu, then pick player colors last."
         broadcastToAll(msg, {
             r = 1,
             g = 0,
             b = 0
         })
-        return {""}
+      end
+      return {""}
     end
 
     local clockwise_order = {"White", "Pink", "Yellow", "Teal", "Red"}

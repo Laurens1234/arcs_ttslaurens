@@ -573,7 +573,7 @@ function onload()
     -- compute sensible defaults for leader/lore counts so display buttons start with numbers
     local function initial_resolved_default_count()
         -- Count seated players whose colors are in `available_colors`
-        local ordered = Global.call("getOrderedPlayers") or {}
+        local ordered = Global.call("getOrderedPlayers", {true}) or {}
         local n = 0
         local colors = available_colors or {"White", "Yellow", "Red", "Teal", "Pink"}
         for _, p in ipairs(ordered) do
@@ -584,7 +584,7 @@ function onload()
                 end
             end
         end
-        if n >= 2 and n <= 4 then
+        if n >= 2 and n <= 5 then
             return n + 1
         end
         local dbg = Global.getVar("debug_player_count") or 3
@@ -628,7 +628,7 @@ function onload()
     -- Initialize numeric display labels from globals (resolve default if nil)
     local function resolved_default_count()
         -- Prefer seated players in allowed `available_colors` for defaults
-        local ordered = Global.call("getOrderedPlayers") or {}
+        local ordered = Global.call("getOrderedPlayers", {true}) or {}
         local n = 0
         local colors = available_colors or {"White", "Yellow", "Red", "Teal", "Pink"}
         for _, p in ipairs(ordered) do
@@ -639,7 +639,7 @@ function onload()
                 end
             end
         end
-        if n >= 2 and n <= 4 then
+        if n >= 2 and n <= 5 then
             return n + 1
         end
         local dbg = Global.getVar("debug_player_count") or 3
@@ -662,7 +662,7 @@ function onload()
     do
         local sc_index = Global.getVar("setup_choice_index") or 0
         local sc_pcount = Global.getVar("setup_choice_player_count")
-        local active = Global.call("getOrderedPlayers") or Global.getTable("active_players") or Player.getPlayers() or {}
+        local active = Global.call("getOrderedPlayers", {true}) or Global.getTable("active_players") or Player.getPlayers() or {}
         local pcount = #active
         local display_label = "Setup: Random"
         if sc_index and sc_index >= 1 and sc_pcount == pcount then
@@ -678,7 +678,7 @@ function onload()
         local ic_index = Global.getVar("initiative_choice_index") or 0
         local ic_pcount = Global.getVar("initiative_choice_player_count")
         local ic_color = Global.getVar("initiative_choice_color")
-        local active = Global.call("getOrderedPlayers") or Global.getTable("active_players") or Player.getPlayers() or {}
+        local active = Global.call("getOrderedPlayers", {true}) or Global.getTable("active_players") or Player.getPlayers() or {}
         local pcount = #active
         local display_label = "Initiative: Random"
         if ic_color and ic_pcount == pcount then
@@ -835,7 +835,7 @@ end
 -- Resolve a sensible default (player_count + 1) using active players or debug fallback
 local function resolved_default_count()
     -- Prefer seated players in allowed `available_colors` for defaults
-    local ordered = Global.call("getOrderedPlayers") or {}
+    local ordered = Global.call("getOrderedPlayers", {true}) or {}
     local n = 0
     local colors = available_colors or {"White", "Yellow", "Red", "Teal", "Pink"}
     for _, p in ipairs(ordered) do
@@ -846,7 +846,7 @@ local function resolved_default_count()
             end
         end
     end
-    if n >= 2 and n <= 4 then
+    if n >= 2 and n <= 5 then
         return n + 1
     end
     local dbg = Global.getVar("debug_player_count") or 3
@@ -900,7 +900,7 @@ end
 
 function cycle_setup_choice(obj, color, alt_click)
     -- Determine active players (use ordered players if available)
-    local active = Global.call("getOrderedPlayers") or Global.getTable("active_players") or Player.getPlayers() or {}
+    local active = Global.call("getOrderedPlayers", {true}) or Global.getTable("active_players") or Player.getPlayers() or {}
     local player_count = #active
     if player_count < 2 or player_count > 5 then
         broadcastToAll("Setup chooser requires 2-5 active players.", {r=1, g=0, b=0})
@@ -930,7 +930,7 @@ function cycle_setup_choice(obj, color, alt_click)
 end
 
 function cycle_initiative_choice(obj, color, alt_click)
-    local active = Global.call("getOrderedPlayers") or Global.getTable("active_players") or Player.getPlayers() or {}
+    local active = Global.call("getOrderedPlayers", {true}) or Global.getTable("active_players") or Player.getPlayers() or {}
     local player_count = #active
     if player_count < 2 or player_count > 5 then
         broadcastToAll("Initiative chooser requires 2-5 active players.", {r=1, g=0, b=0})
