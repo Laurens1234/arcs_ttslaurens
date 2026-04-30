@@ -433,10 +433,6 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
     else
         active_players = Global.call("getOrderedPlayers")
     end
-    Global.setVar("active_players", active_players)
-    if (#active_players < 2 or #active_players > 5) then
-        return false
-    end
 
     if #active_players >= 5 then
         shift_ambition_markers()
@@ -454,6 +450,34 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
 
     BaseGame.setup_or_destroy_miniatures(with_miniatures)
 
+    -- B: determine initiative recipient (respect stored choice or random)
+    local initiative = require("src/InitiativeMarker")
+    local init_choice_color = Global.getVar("initiative_choice_color")
+    local init_choice_index = Global.getVar("initiative_choice_index") or 0
+    local init_choice_pcount = Global.getVar("initiative_choice_player_count")
+
+    -- determine chosen_color: prefer stored choice, else pick randomly
+    local chosen_color
+    if init_choice_color then
+        for _, p in ipairs(active_players) do
+            if p.color == init_choice_color then chosen_color = p.color; break end
+        end
+    elseif init_choice_index and init_choice_index >= 1 and init_choice_pcount == #active_players and init_choice_index <= #active_players then
+        chosen_color = active_players[init_choice_index].color
+    else
+        -- random mode: pick a random seated player to receive initiative and
+        -- rotate the active players so that player 1 is that chosen player
+        chosen_color = active_players[math.random(#active_players)].color
+        active_players = Global.call("getOrderedPlayersStartingWith", chosen_color)
+    end
+
+    -- Now that we've finalized `active_players`, store it and validate
+    Global.setVar("active_players", active_players)
+    if (#active_players < 2 or #active_players > 5) then
+        return false
+    end
+
+    -- Set up per-player boards/objects now that active_players order is final
     local active_player_colors = {}
     for _, p in pairs(active_players) do
         ArcsPlayer.setup(p, false)
@@ -474,25 +498,7 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
     -- Clear the flag after setup to avoid affecting reloads or later calls
     Global.setVar("is_initial_setup", false)
 
-    -- B: determine initiative recipient (respect stored choice or random)
-    local initiative = require("src/InitiativeMarker")
-    local init_choice_color = Global.getVar("initiative_choice_color")
-    local init_choice_index = Global.getVar("initiative_choice_index") or 0
-    local init_choice_pcount = Global.getVar("initiative_choice_player_count")
-    -- `chosen_color` may have been computed earlier when we rotated players;
-    -- if not, try to derive it here, otherwise pick randomly.
-    if not chosen_color then
-        if init_choice_color then
-            for _, p in ipairs(active_players) do
-                if p.color == init_choice_color then chosen_color = p.color; break end
-            end
-        elseif init_choice_index and init_choice_index >= 1 and init_choice_pcount == #active_players and init_choice_index <= #active_players then
-            chosen_color = active_players[init_choice_index].color
-        end
-        if not chosen_color then
-            chosen_color = active_players[math.random(#active_players)].color
-        end
-    end
+    -- Place initiative marker for chosen player (chosen_color computed earlier)
     initiative.take(chosen_color)
 
     -- D
