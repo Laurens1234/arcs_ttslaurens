@@ -189,10 +189,11 @@ local all_supplies = {
     },
     ["Imperial Ship (Damaged)"] = {
         bag = imperial_ships_GUID,
-        state = 1
+        mini_bag = mini_imperial_ships_GUID
     },
     ["Imperial Ship (Fresh)"] = {
-        bag = imperial_ships_GUID
+        bag = imperial_ships_GUID,
+        mini_bag = mini_imperial_ships_GUID
     },
     ["Free City"] = {
         bag = free_cities_GUID

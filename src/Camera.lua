@@ -155,6 +155,16 @@ function Camera.generateMenuXml(menuOpen, controlsXml)
                 tooltipTextColor="Black"
                 >
             </Button>
+            <Button
+                onClick="send_scores_to_sheet_ui"
+                text="Send Scores"
+                textColor="white"
+                color="#2e8b57"
+                tooltip="Send each player's cards and scoreboard to the spreadsheet"
+                tooltipBackgroundColor="#2e8b57"
+                tooltipTextColor="Black"
+                >
+            </Button>
             <VerticalLayout
                 id="cameraControls"
                 height="320"
