@@ -182,6 +182,7 @@ local Supplies = require("src/Supplies")
 local Camera = require("src/Camera")
 local Timer = require("src/Timer")
 local LOG = require("src/LOG")
+local SheetsSender = require("src/SheetsSender")
 
 function assignPlayerToAvailableColor(player, color)
     local color = table.remove(available_colors, 1)
