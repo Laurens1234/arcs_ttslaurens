@@ -404,6 +404,16 @@ function BaseGame.adjust_action_deck_for_5p()
                 end
             end)
         end
+        -- Move or create snaps object for 5P layout
+        local snaps_obj = getObjectFromGUID(snaps_5p_GUID)
+        if snaps_obj then
+            local snaps_target = {-12.18, 0.73, 5.26}
+            if snaps_obj.setPositionSmooth then
+                snaps_obj.setPositionSmooth(snaps_target)
+            elseif snaps_obj.setPosition then
+                snaps_obj.setPosition(snaps_target)
+            end
+        end
     end)
 end
 
@@ -430,6 +440,16 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
 
     if #active_players >= 5 then
         shift_ambition_markers()
+        -- Adjust action deck and related objects for 5P layout
+        BaseGame.adjust_action_deck_for_5p()
+    else
+        -- Ensure the 5P snaps object is removed when not using 5P layout
+        pcall(function()
+            local snaps_obj = getObjectFromGUID(snaps_5p_GUID)
+            if snaps_obj then
+                destroyObject(snaps_obj)
+            end
+        end)
     end
 
     BaseGame.setup_or_destroy_miniatures(with_miniatures)

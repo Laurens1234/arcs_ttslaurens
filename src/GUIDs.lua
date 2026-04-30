@@ -24,6 +24,8 @@ face_up_discard_action_deck_GUID = "a8e929"
 lead_card_zone_GUID = "9e5eae"
 FUDiscard_marker_GUID = "000207"
 
+snaps_5p_GUID = "fc47e1"
+
 zero_marker_GUID = "0289cb"
 zero_marker_zone_GUID = "3984e4"
 negative_power_zone_GUID = "3984e5"
