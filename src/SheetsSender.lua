@@ -1,12 +1,93 @@
 -- Simple Sheets sender for testing
 -- This module exposes a global UI callback `send_scores_to_sheet_ui`
 
-local WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyd1biU0k3XFlLWFGS6Y9aU_pLMJjJG3CvQuYtMmnIl1UTzMzHqbSgJtlR-cxSr-AWNBA/exec"
+local WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwJXl_bU4d7ZxlhJ0a1fiROy2Haz3qkIodoe-8IdSQL3xn-IW7YmWBpW3m28xckoFQyug/exec"
 
 local SheetsSender = {}
 -- last computed preview rows (table form) so Send Now posts the exact preview
 local last_preview_rows = nil
+-- remember the last preview player order so reopening the preview does not reshuffle players
+local last_preview_order_colors = nil
+-- store notes text
+local last_notes = ""
+-- store selected act
+local last_selected_act = "basegame"
 local ActionCards = require("src/ActionCards")
+require("src/GUIDs")
+-- special object GUID that indicates the "first regent" tile/object
+local FIRST_REGENT_GUID = "e9b0f4"
+
+local function get_player_color(p)
+    if type(p) == "table" and p.color then return tostring(p.color) end
+    if type(p) == "string" then return tostring(p) end
+    return tostring(p)
+end
+
+local function get_player_colors(players)
+    local colors = {}
+    if type(players) ~= "table" then return colors end
+    for _, p in ipairs(players) do
+        table.insert(colors, get_player_color(p))
+    end
+    return colors
+end
+
+-- Convert a TTS color name (e.g., "Pink") to a hex string like "#RRGGBB".
+local function color_to_hex(color_name)
+    if not color_name then return "#999999" end
+    local ok, col = pcall(function() return Color.fromString(color_name) end)
+    if ok and col and type(col) == "table" and col[1] then
+        local r = math.floor((col[1] or 1) * 255 + 0.5)
+        local g = math.floor((col[2] or 1) * 255 + 0.5)
+        local b = math.floor((col[3] or 1) * 255 + 0.5)
+        return string.format("#%02X%02X%02X", r, g, b)
+    end
+    -- fallback small mapping
+    local map = {
+        White = "#FFFFFF", Pink = "#FF69B4", Yellow = "#FFFF66", Teal = "#008080", Red = "#FF4444", Blue = "#4488FF", Green = "#44CC44", Black = "#222222"
+    }
+    return map[color_name] or "#999999"
+end
+
+local function same_color_set(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then return false end
+    if #a ~= #b then return false end
+    local counts = {}
+    for _, color in ipairs(a) do
+        counts[color] = (counts[color] or 0) + 1
+    end
+    for _, color in ipairs(b) do
+        local count = counts[color]
+        if not count then return false end
+        if count == 1 then counts[color] = nil else counts[color] = count - 1 end
+    end
+    return next(counts) == nil
+end
+
+local function order_players_like(players, colors)
+    if type(players) ~= "table" or type(colors) ~= "table" or #players == 0 then return players end
+    local by_color = {}
+    for _, p in ipairs(players) do
+        by_color[get_player_color(p)] = p
+    end
+    local ordered = {}
+    local seen = {}
+    for _, color in ipairs(colors) do
+        local p = by_color[color]
+        if p then
+            table.insert(ordered, p)
+            seen[color] = true
+        end
+    end
+    -- include any newly-seated players at the end without changing the remembered order
+    for _, p in ipairs(players) do
+        local color = get_player_color(p)
+        if not seen[color] then
+            table.insert(ordered, p)
+        end
+    end
+    return ordered
+end
 
 -- Resolve player GUIDs from available sources: local player_pieces, Global var player_pieces_GUIDs, or global player_pieces_GUIDs
 local function get_player_guid(color, key)
@@ -42,9 +123,99 @@ local function get_player_guid(color, key)
     return nil
 end
 
+local function resolve_initiative_player_color()
+    local initiative_guids = { initiative_GUID, seized_initiative_GUID }
+    local seated = {}
+    pcall(function()
+        local players = Global.getVar("active_players") or Global.getTable("active_players") or {}
+        seated = players
+    end)
+
+    broadcastToAll("Sheets: resolve_initiative_player_color() called, initiative_GUID=" .. tostring(initiative_GUID) .. ", seized=" .. tostring(seized_initiative_GUID), {0.8, 0.8, 0.2})
+
+    -- First: scan each player's initiative zone for the marker
+    for _, p in ipairs(seated) do
+        local color = get_player_color(p)
+        
+        -- Try get_player_guid first (for normal setup), then fall back to global player_pieces_GUIDs (for custom setup)
+        local zone_guid = get_player_guid(color, "initiative_zone")
+        if not zone_guid and player_pieces_GUIDs and player_pieces_GUIDs[color] and player_pieces_GUIDs[color].initiative_zone then
+            zone_guid = player_pieces_GUIDs[color].initiative_zone
+        end
+        
+        broadcastToAll("Sheets: checking " .. tostring(color) .. " zone_guid=" .. tostring(zone_guid), {0.6, 0.6, 0.9})
+        if zone_guid then
+            local zone = getObjectFromGUID(zone_guid)
+            if zone and type(zone.getObjects) == "function" then
+                local ok_zone, objs = pcall(function() return zone.getObjects() end)
+                if ok_zone and objs then
+                    broadcastToAll("Sheets: zone has " .. tostring(#objs) .. " objects", {0.6, 0.6, 0.9})
+                    for _, obj in ipairs(objs) do
+                        local guid = nil
+                        pcall(function() if obj.getGUID then guid = obj.getGUID() end end)
+                        if not guid and obj.guid then guid = obj.guid end
+                        if guid then
+                            broadcastToAll("Sheets: found object guid=" .. tostring(guid), {0.6, 0.6, 0.9})
+                            for _, target in ipairs(initiative_guids) do
+                                if tostring(guid) == tostring(target) then
+                                    broadcastToAll("Sheets: MATCHED initiative for " .. tostring(color), {0.2, 0.8, 0.2})
+                                    return color
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Fallback: try to get the initiative objects directly by GUID and find which player zone contains them
+    for _, init_guid in ipairs(initiative_guids) do
+        local init_obj = getObjectFromGUID(tostring(init_guid))
+        if init_obj then
+            broadcastToAll("Sheets: found initiative object " .. tostring(init_guid) .. " directly", {0.8, 0.6, 0.2})
+            -- Now check which player's initiative zone contains this object
+            for _, p in ipairs(seated) do
+                local color = get_player_color(p)
+                local zone_guid = get_player_guid(color, "initiative_zone")
+                if not zone_guid and player_pieces_GUIDs and player_pieces_GUIDs[color] and player_pieces_GUIDs[color].initiative_zone then
+                    zone_guid = player_pieces_GUIDs[color].initiative_zone
+                end
+                if zone_guid then
+                    local zone = getObjectFromGUID(zone_guid)
+                    if zone and type(zone.getObjects) == "function" then
+                        local ok_zone, objs = pcall(function() return zone.getObjects() end)
+                        if ok_zone and objs then
+                            for _, obj in ipairs(objs) do
+                                local guid = nil
+                                pcall(function() if obj.getGUID then guid = obj.getGUID() end end)
+                                if not guid and obj.guid then guid = obj.guid end
+                                if guid and tostring(guid) == tostring(init_guid) then
+                                    broadcastToAll("Sheets: MATCHED initiative (fallback) for " .. tostring(color), {0.2, 0.8, 0.2})
+                                    return color
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    broadcastToAll("Sheets: NO initiative player detected", {0.8, 0.2, 0.2})
+    return nil
+end
+
 -- Return true if the given object appears to be a card (Card/Deck or tagged/ named as a card)
 local function is_card_object(obj)
     if not obj then return false end
+    -- Exclude objects that are actually player boards (some setups tag them)
+    local ok_ex, is_player_board = pcall(function() if obj.hasTag then return obj.hasTag("player board") end end)
+    if ok_ex and is_player_board then return false end
+    local ok_ex2, is_player_board2 = pcall(function() if obj.hasTag then return obj.hasTag("playerboard") end end)
+    if ok_ex2 and is_player_board2 then return false end
+    local ok_ex3, is_player_board3 = pcall(function() if obj.hasTag then return obj.hasTag("Player Board") end end)
+    if ok_ex3 and is_player_board3 then return false end
     local ok, typ = pcall(function() return obj.type end)
     if ok and typ then
         if typ == "Card" or typ == "Deck" then return true end
@@ -57,6 +228,55 @@ local function is_card_object(obj)
         if string.find(lname, "card") or string.find(lname, "action") then return true end
     end
     return false
+end
+
+-- Return string like "face-down" / "face-up" or nil if unknown
+local function card_face_str(obj)
+    if not obj then return nil end
+    local is_down = nil
+    pcall(function() is_down = obj.is_face_down end)
+    if is_down == nil then pcall(function() is_down = obj.is_face_down() end) end
+    if is_down == nil then return nil end
+    if is_down == true then return "face-down" end
+    return "face-up"
+end
+
+local function format_card_label(obj, label, area_obj)
+    if not label or label == "" then return label end
+    -- determine tag prefix (Leader/Fate) when present
+    local prefix = ""
+    pcall(function()
+        if obj and obj.hasTag and obj.hasTag("Leader") then prefix = "Leader: " end
+        if obj and obj.hasTag and obj.hasTag("Fate") then prefix = "Fate: " end
+    end)
+    -- fallback: check table-style tags (use pcall for userdata safety)
+    if prefix == "" and obj then
+        local ok_tags, tags = pcall(function() return obj.tags end)
+        if ok_tags and tags and type(tags) == "table" then
+            for _, t in ipairs(tags) do
+                if tostring(t) == "Leader" then prefix = "Leader: " ; break end
+                if tostring(t) == "Fate" then prefix = "Fate: " ; break end
+            end
+        end
+    end
+    -- don't duplicate if label already contains the prefix
+    local upcheck = string.upper(tostring(label))
+    if prefix ~= "" and (string.find(upcheck, "^LEADER") or string.find(upcheck, "^FATE")) then
+        prefix = ""
+    end
+    local up = string.upper(tostring(label))
+    -- Only append face state for specific cards
+    if string.find(up, "IMPERIAL REGENT") or string.find(up, "OUTLAW") then
+        local state = card_face_str(obj)
+        if state then
+            label = label .. " (" .. state .. ")"
+        end
+    end
+    -- If provided area_obj matches the FIRST_REGENT_AREA_GUID, mark as first regent
+    if area_obj then
+        -- area_obj may be a zone; don't treat it as first regent. Detection is done per-object.
+    end
+    return prefix .. label
 end
 
 -- URL-encode a string for form-encoding
@@ -123,36 +343,80 @@ _G["send_scores_to_sheet_ui"] = send_simple_test
 
 -- Open a preview UI showing the payload to be sent (sample data for now)
 local function generate_preview_xml(active)
-    -- Prefer the live var; fall back to saved table
-    active = active or Global.getVar("active_players") or Global.getTable("active_players") or {}
+    -- Prefer ordered players from Global if available; fall back to provided/active vars
+    local ok_ordered, ordered = pcall(function() return Global.call("getOrderedPlayers", {true}) end)
+    if ok_ordered and ordered and type(ordered) == "table" and #ordered > 0 then
+        local ordered_colors = get_player_colors(ordered)
+        if last_preview_order_colors and same_color_set(last_preview_order_colors, ordered_colors) then
+            active = order_players_like(ordered, last_preview_order_colors)
+        else
+            active = ordered
+            last_preview_order_colors = ordered_colors
+        end
+    else
+        active = active or Global.getVar("active_players") or Global.getTable("active_players") or {}
+        local active_colors = get_player_colors(active)
+        if last_preview_order_colors and same_color_set(last_preview_order_colors, active_colors) then
+            active = order_players_like(active, last_preview_order_colors)
+        end
+    end
     broadcastToAll("Sheets preview: generate_preview_xml active count=" .. tostring(#active), {0.6,0.6,0.9})
+
+    -- Get game ID from Global
+    local game_id = ""
+    pcall(function()
+        game_id = Global.getVar("game_id") or ""
+    end)
 
     -- reset stored preview rows
     last_preview_rows = {}
     local rows = {}
+    table.insert(rows, '<Panel preferredWidth="1500" preferredHeight="1" color="#FFFFFF" />')
     table.insert(rows, [[
         <HorizontalLayout spacing="8">
-            <Text text="Player" color="#dcdcdc" fontSize="16" preferredWidth="160" />
-            <Text text="Cards" color="#dcdcdc" fontSize="16" preferredWidth="220" />
-            <Text text="Power" color="#dcdcdc" fontSize="16" preferredWidth="60" />
-            <Text text="Hand" color="#dcdcdc" fontSize="16" preferredWidth="50" />
-            <Text text="Tycoon" color="#dcdcdc" fontSize="16" preferredWidth="60" />
-            <Text text="Captives" color="#dcdcdc" fontSize="16" preferredWidth="60" />
-            <Text text="Trophies" color="#dcdcdc" fontSize="16" preferredWidth="60" />
-            <Text text="Keeper" color="#dcdcdc" fontSize="16" preferredWidth="60" />
-            <Text text="Empath" color="#dcdcdc" fontSize="16" preferredWidth="60" />
+            <Panel preferredWidth="40" preferredHeight="18" color="#00000000" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Player" color="#dcdcdc" fontSize="16" preferredWidth="260" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Color" color="#dcdcdc" fontSize="16" preferredWidth="80" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Init" color="#dcdcdc" fontSize="16" preferredWidth="40" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Area" color="#dcdcdc" fontSize="16" preferredWidth="480" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Power" color="#dcdcdc" fontSize="16" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Hand#" color="#dcdcdc" fontSize="16" preferredWidth="70" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Tycoon" color="#dcdcdc" fontSize="16" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Captives" color="#dcdcdc" fontSize="16" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Trophies" color="#dcdcdc" fontSize="16" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Keeper" color="#dcdcdc" fontSize="16" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Empath" color="#dcdcdc" fontSize="16" preferredWidth="90" />
         </HorizontalLayout>
     ]])
+    table.insert(rows, '<Panel preferredWidth="1500" preferredHeight="1" color="#FFFFFF" />')
 
     if #active == 0 then
         -- fallback sample row
         table.insert(rows, [[
         <HorizontalLayout spacing="8">
-            <Text text="Alice" color="white" fontSize="14" preferredWidth="160" />
-            <Text text="12" color="white" fontSize="14" preferredWidth="80" />
-            <Text text="Leader: Duke; Hand: Noble, Spy" color="white" fontSize="14" preferredWidth="320" />
+            <Panel preferredWidth="40" preferredHeight="18" color="#FF69B4" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Alice" color="white" fontSize="14" preferredWidth="260" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Pink" color="white" fontSize="14" preferredWidth="80" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="✓" color="white" fontSize="14" preferredWidth="40" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Leader: Duke; Hand: Noble, Spy" color="white" fontSize="14" preferredWidth="480" />
         </HorizontalLayout>
         ]])
+        table.insert(rows, '<Panel preferredWidth="1500" preferredHeight="1" color="#FFFFFF" />')
     else
         for _, p in ipairs(active) do
             local name = nil
@@ -166,12 +430,19 @@ local function generate_preview_xml(active)
 
             local arcs_player = nil
             if type(p) == "table" and p.color then
-                arcs_player = p
-                local ok, pl = pcall(function() return Player[p.color] end)
+                -- If the ordered players returned an ArcsPlayer-like table, try to
+                -- resolve the authoritative ArcsPlayer instance (may have score_board refs)
+                local okap, ap = pcall(function() return get_arcs_player(p.color) end)
+                if okap and ap then
+                    arcs_player = ap
+                else
+                    arcs_player = p
+                end
+                local ok, pl = pcall(function() return Player[(arcs_player and arcs_player.color) or p.color] end)
                 if ok and pl and pl.steam_name and pl.steam_name ~= "" then
                     name = pl.steam_name
                 else
-                    name = p.color
+                    name = (arcs_player and arcs_player.color) or p.color
                 end
             elseif type(p) == "string" then
                 -- try to resolve ArcsPlayer by color
@@ -236,27 +507,32 @@ local function generate_preview_xml(active)
 
             -- Gather cards from the player's area and hand (use ActionCards.get_info when available)
             local cards_list = {}
-            local function push_card_obj(obj, source)
+            local function push_card_obj(obj, source, area_obj)
                 if not obj then return end
                 local added = false
                 if ActionCards and type(ActionCards.get_info) == "function" then
                     local ok, info = pcall(function() return ActionCards.get_info(obj) end)
                     if ok and info and info.type then
-                        table.insert(cards_list, tostring(info.type) .. (info.number and ("#" .. tostring(info.number)) or ""))
+                        local lbl = tostring(info.type) .. (info.number and ("#" .. tostring(info.number)) or "")
+                        table.insert(cards_list, format_card_label(obj, lbl, area_obj))
                         added = true
                     end
                 end
                 if not added then
-                    local ok, nm = pcall(function() return obj.getName and obj.getName() end)
-                    if ok and nm and tostring(nm) ~= "" then
-                        table.insert(cards_list, tostring(nm))
+                        local nm = nil
+                        local ok1 = pcall(function() if obj.getName then nm = obj.getName() end end)
+                        if (not nm or tostring(nm) == "") and obj.name then nm = obj.name end
+                        if ok1 and nm and tostring(nm) ~= "" then
+                            table.insert(cards_list, format_card_label(obj, tostring(nm), area_obj))
                         added = true
                     end
                 end
                 if not added then
-                    local ok, desc = pcall(function() return obj.getDescription and obj.getDescription() end)
-                    if ok and desc and tostring(desc) ~= "" then
-                        table.insert(cards_list, tostring(desc))
+                        local desc = nil
+                        local ok2 = pcall(function() if obj.getDescription then desc = obj.getDescription() end end)
+                        if (not desc or tostring(desc) == "") and obj.description then desc = obj.description end
+                        if ok2 and desc and tostring(desc) ~= "" then
+                            table.insert(cards_list, format_card_label(obj, tostring(desc), area_obj))
                     end
                 end
             end
@@ -274,16 +550,26 @@ local function generate_preview_xml(active)
                 if ok and objs then
                     broadcastToAll("Sheets preview: found " .. tostring(#objs) .. " area objects for " .. tostring(name), {0.3,0.6,0.9})
                     for _, o in ipairs(objs) do
-                        if not is_card_object(o) then
-                            -- skip non-card objects in area
-                        else
-                            local okn, nm = pcall(function() return o.getName and o.getName() end)
-                            if okn and nm and tostring(nm) ~= "" then
-                                table.insert(cards_list, tostring(nm))
+                        -- detect object GUID robustly
+                        local og = nil
+                        pcall(function() if o.getGUID then og = o.getGUID() end end)
+                        if (not og) and o.guid then og = o.guid end
+                        local is_first_regent_obj = og and tostring(og) == FIRST_REGENT_GUID
+                        if is_first_regent_obj then
+                            -- explicitly add a user-friendly label for the first regent
+                            table.insert(cards_list, "First Regent")
+                        elseif is_card_object(o) then
+                            -- treat normal card objects as before
+                            local nm = nil
+                            pcall(function() if o.getName then nm = o.getName() end end)
+                            if (not nm or tostring(nm) == "") and o.name then nm = o.name end
+                            if nm and tostring(nm) ~= "" then
+                                table.insert(cards_list, format_card_label(o, tostring(nm)))
                             else
-                                -- fallback to generic handling (action card info, description, etc.)
                                 push_card_obj(o, "area")
                             end
+                        else
+                            -- skip any other non-card objects
                         end
                     end
                 else
@@ -307,7 +593,7 @@ local function generate_preview_xml(active)
                     broadcastToAll("Sheets preview: found " .. tostring(#objs) .. " hand objects for " .. tostring(name), {0.3,0.6,0.9})
                     for _, o in ipairs(objs) do
                         if is_card_object(o) then
-                            push_card_obj(o, "hand")
+                            push_card_obj(o, "hand", hand_zone_obj)
                         end
                     end
                 else
@@ -317,10 +603,32 @@ local function generate_preview_xml(active)
                 broadcastToAll("Sheets preview: no hand zone object for " .. tostring(name), {1,0.4,0.2})
             end
 
-            -- store a structured row so send uses exactly the preview content (include cards array)
+            -- initiative detection
+            local initiative_player = resolve_initiative_player_color()
+            local has_initiative = false
+            if initiative_player and arcs_player and arcs_player.color and tostring(initiative_player) == tostring(arcs_player.color) then has_initiative = true end
+
+            -- clean cards list: remove stray tokens like "active"/"area"/"hand" and empty entries
+            local clean_cards = {}
+            for _, c in ipairs(cards_list) do
+                local ok, s = pcall(function() return tostring(c) end)
+                if not ok then s = "" end
+                s = s or ""
+                s = s:gsub("^%s+", ""):gsub("%s+$", "")
+                local ls = string.lower(s)
+                if s ~= "" and ls ~= "active" and ls ~= "area" and ls ~= "hand" then
+                    table.insert(clean_cards, s)
+                end
+            end
+
+            -- store a structured row so send uses exactly the preview content (include cleaned cards array)
+            local color_name = (arcs_player and arcs_player.color) or ((type(p) == "table" and p.color) and p.color) or (type(p) == "string" and p) or tostring(p)
             table.insert(last_preview_rows, {
+                full_name = name,
                 name = name,
-                color = (arcs_player and arcs_player.color) or ((type(p) == "table" and p.color) and p.color) or (type(p) == "string" and p) or tostring(p),
+                color = color_name,
+                color_hex = color_to_hex(color_name),
+                initiative = has_initiative,
                 power = tostring(power),
                 hand_size = tostring(hand_size),
                 tycoon = tostring(tycoon),
@@ -328,41 +636,78 @@ local function generate_preview_xml(active)
                 trophies = tostring(trophies),
                 keeper = tostring(keeper),
                 empath = tostring(empath),
-                cards = cards_list,
+                cards = clean_cards,
             })
 
-            table.insert(rows, string.format([[
+            local init_display = has_initiative and "✓" or ""
+            -- split cards into area / hand for display (best-effort)
+            local area_str = table.concat(clean_cards, " | ")
+            table.insert(rows, string.format([[ 
         <HorizontalLayout spacing="8">
-            <Text text="%s" color="white" fontSize="14" preferredWidth="160" />
-            <Text text="%s" color="white" fontSize="14" preferredWidth="220" />
-            <Text text="%s" color="white" fontSize="14" preferredWidth="60" />
-            <Text text="%s" color="white" fontSize="14" preferredWidth="50" />
-            <Text text="%s" color="white" fontSize="14" preferredWidth="60" />
-            <Text text="%s" color="white" fontSize="14" preferredWidth="60" />
-            <Text text="%s" color="white" fontSize="14" preferredWidth="60" />
-            <Text text="%s" color="white" fontSize="14" preferredWidth="60" />
-            <Text text="%s" color="white" fontSize="14" preferredWidth="60" />
+            <Panel preferredWidth="40" preferredHeight="18" color="%s" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="260" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="80" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="40" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="480" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="70" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
         </HorizontalLayout>
-        ]], name, table.concat(cards_list, " | "), tostring(power), tostring(hand_size), tostring(tycoon), tostring(captives), tostring(trophies), tostring(keeper), tostring(empath)))
+            ]], color_to_hex(((arcs_player and arcs_player.color) or ((type(p) == "table" and p.color) and p.color) or (type(p) == "string" and p) or tostring(p))), name, (arcs_player and arcs_player.color) or ((type(p) == "table" and p.color) and p.color) or (type(p) == "string" and p) or tostring(p), init_display, area_str, tostring(power), tostring(hand_size), tostring(tycoon), tostring(captives), tostring(trophies), tostring(keeper), tostring(empath)))
+            table.insert(rows, '<Panel preferredWidth="1500" preferredHeight="1" color="#FFFFFF" />')
+        -- replace the fields above: show initiative marker as check if present
         end
     end
 
     local rows_xml = table.concat(rows, "\n")
 
-    return string.format([[
+    return string.format([[ 
     <Canvas>
-        <Panel id="sheetsPreviewPanel" rectAlignment="MiddleCenter" allowDragging="true" width="600" height="360" color="#222222CC" childForceExpandWidth="false" childForceExpandHeight="false">
+        <Panel id="sheetsPreviewPanel" rectAlignment="MiddleCenter" allowDragging="true" width="1280" height="800" color="#222222CC" childForceExpandWidth="false" childForceExpandHeight="false">
             <VerticalLayout spacing="8" padding="10" childForceExpandHeight="false" childForceExpandWidth="false">
-                <Text text="Sheets Payload Preview" fontSize="22" color="white" />
+                <Text text="Sheets Payload Preview - Game ID: %s" fontSize="22" color="white" />
                 %s
                 <HorizontalLayout spacing="8" childForceExpandWidth="false">
                     <Button text="Send Now" onClick="send_preview_to_sheet_ui" color="#2e8b57" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="16" />
                     <Button text="Close" onClick="loadCameraTimerMenu" color="#888888" textColor="white" width="80" height="36" preferredWidth="80" preferredHeight="36" fontSize="16" />
+                    <Text text="Notes:" color="#dcdcdc" fontSize="14" preferredWidth="60" />
+                    <InputField id="sheetsNotesInput" text="" characterLimit="500" contentType="TextArea" placeholder="Add notes here..." preferredWidth="400" preferredHeight="18" onValueChanged="update_notes_field" />
+                    <Text text="Act:" color="#dcdcdc" fontSize="14" preferredWidth="40" />
+                    <Dropdown id="sheetsActDropdown" onValueChanged="update_act_dropdown" preferredWidth="120" preferredHeight="28">
+                        <Option value="basegame">basegame</Option>
+                        <Option value="Lost Vaults">Lost Vaults</Option>
+                        <Option value="Act I">Act I</Option>
+                        <Option value="Act II">Act II</Option>
+                        <Option value="Act III">Act III</Option>
+                    </Dropdown>
                 </HorizontalLayout>
             </VerticalLayout>
         </Panel>
     </Canvas>
-    ]], rows_xml)
+    ]], game_id, rows_xml)
+end
+
+local function update_notes_field(player, value, id)
+    last_notes = tostring(value or "")
+end
+
+local function update_act_dropdown(player, value, id)
+    last_selected_act = tostring(value or "basegame")
 end
 
 local function open_preview(player, value, id)
@@ -372,7 +717,14 @@ local function open_preview(player, value, id)
         UI.setAttribute("sheetsSendBtn", "tooltip", "")
         UI.setAttribute("sheetsSendBtn", "tooltipBackgroundColor", "")
     end)
-    local active = Global.getVar("active_players") or Global.getTable("active_players") or {}
+    -- Prefer ordered players from Global if available
+    local active = nil
+    local ok_ordered, ordered = pcall(function() return Global.call("getOrderedPlayers", {true}) end)
+    if ok_ordered and ordered and type(ordered) == "table" and #ordered > 0 then
+        active = ordered
+    else
+        active = Global.getVar("active_players") or Global.getTable("active_players") or {}
+    end
     broadcastToAll("Sheets preview: open_preview active count=" .. tostring(#active), {0.3,0.7,0.3})
     -- Debug: broadcast resolved names to help diagnose empty name issue
     local resolved = {}
@@ -467,9 +819,18 @@ local function send_preview_to_sheet(player, value, id)
             end
         end
 
+        -- detect initiative for this row as well
+        local initiative_player = resolve_initiative_player_color()
+        local has_initiative = false
+        if initiative_player and color and tostring(initiative_player) == tostring(color) then has_initiative = true end
+
+        local color_hex = color_to_hex(color)
         table.insert(rows, {
+            full_name = name,
             name = name,
             color = color,
+            color_hex = color_hex,
+            initiative = has_initiative,
             power = power,
             hand_size = hand_size,
             tycoon = tycoon,
@@ -488,7 +849,17 @@ local function send_preview_to_sheet(player, value, id)
         rows_to_send = rows
     end
 
-    local payload = { players = rows_to_send }
+    -- Capture notes from the stored global
+    local notes = last_notes or ""
+    broadcastToAll("Sheets: notes being sent: " .. tostring(notes), {0.8, 0.8, 0.2})
+
+    -- Get game ID from Global
+    local game_id = ""
+    pcall(function()
+        game_id = Global.getVar("game_id") or ""
+    end)
+
+    local payload = { game_id = game_id, players = rows_to_send, notes = notes, act = last_selected_act }
     local body_json = JSON.encode(payload)
     local headers = { ["Content-Type"] = "application/json" }
 
@@ -506,14 +877,16 @@ local function send_preview_to_sheet(player, value, id)
     local ok, err = pcall(function()
         WebRequest.custom(url_with_q, "POST", true, body_json, headers, function(response)
             _broadcast_response(response)
-            -- close preview and restore camera UI
-            pcall(function() loadCameraTimerMenu(true) end)
         end)
     end)
     if not ok then broadcastToAll("Sheets: WebRequest.custom error: " .. tostring(err), {1,0,0}) end
+    -- close preview after send
+    pcall(function() loadCameraTimerMenu(true) end)
 end
 
 _G["send_preview_to_sheet_ui"] = send_preview_to_sheet
+_G["update_notes_field"] = update_notes_field
+_G["update_act_dropdown"] = update_act_dropdown
 
 function SheetsSender.generateButtonXml()
     return [[

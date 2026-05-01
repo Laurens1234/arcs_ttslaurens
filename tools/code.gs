@@ -54,9 +54,31 @@ function doPost(e) {
 
     // If payload contains players (SubmitGame format)
     if (payload.players && Array.isArray(payload.players)) {
+      const notes = payload.notes || "";
+      const game_id = payload.game_id || "";
+      const act = payload.act || "";
+      // helper to join cards arrays/objects into readable strings
+      function joinCards(node) {
+        if (!node) return "";
+        if (Array.isArray(node)) {
+          return node.map(function(el) {
+            if (typeof el === 'string') return el;
+            if (el === null || el === undefined) return "";
+            if (typeof el === 'object') {
+              if (el.label) return String(el.label);
+              if (el.name) return String(el.name);
+              // keep small fallback
+              try { return JSON.stringify(el); } catch (e) { return String(el); }
+            }
+            return String(el);
+          }).filter(function(s){ return s && s !== ""; }).join(' | ');
+        }
+        // single string
+        if (typeof node === 'string') return node;
+        try { return JSON.stringify(node); } catch (e) { return String(node); }
+      }
+
       payload.players.forEach(function(p) {
-        // Support both the old SubmitGame shape (p.scores array) and the
-        // newer shape where each player has named fields (power, hand_size, etc.).
         const name = p.name || "";
         const color = p.color || "";
         const power = (p.power !== undefined) ? p.power : ((p.scores && p.scores[1]) ? p.scores[1] : "");
@@ -66,8 +88,30 @@ function doPost(e) {
         const trophies = (p.trophies !== undefined) ? p.trophies : ((p.scores && p.scores[8]) ? p.scores[8] : "");
         const keeper = (p.keeper !== undefined) ? p.keeper : ((p.scores && p.scores[10]) ? p.scores[10] : "");
         const empath = (p.empath !== undefined) ? p.empath : ((p.scores && p.scores[12]) ? p.scores[12] : "");
+
+        // initiative (boolean) -> display mark
+        var initiative = "";
+        if (p.initiative === true || p.initiative === 1 || String(p.initiative) === "true") initiative = "✓";
+
+        // Cards: support p.cards (array of strings or objects) or p.area_cards / p.hand_cards
+        var cardsStr = "";
+        try {
+          if (p.area_cards || p.hand_cards) {
+            var areaS = joinCards(p.area_cards);
+            var handS = joinCards(p.hand_cards);
+            var parts = [];
+            if (areaS && areaS.length) parts.push('Area: ' + areaS);
+            if (handS && handS.length) parts.push('Hand: ' + handS);
+            cardsStr = parts.join(' | ');
+          } else if (p.cards) {
+            cardsStr = joinCards(p.cards);
+          }
+        } catch (err) {
+          cardsStr = '';
+        }
+
         // Append each field to its own column. Last column keeps full JSON for debug.
-        sheet.appendRow([ts, name, color, power, hand, tycoon, captives, trophies, keeper, empath, JSON.stringify(p)]);
+        sheet.appendRow([ts, game_id, act, notes, name, color, initiative, power, hand, tycoon, captives, trophies, keeper, empath, cardsStr, JSON.stringify(p)]);
       });
       return ContentService.createTextOutput("OK").setMimeType(ContentService.MimeType.TEXT);
     }

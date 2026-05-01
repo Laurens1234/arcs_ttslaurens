@@ -147,6 +147,7 @@ ArcsPlayer = {
     warlord = 0,
     keeper = 0,
     empath = 0,
+    objective = 0,
     player_instance = nil,
     last_action_card = nil,
     last_seize_card = nil,
@@ -359,6 +360,14 @@ function ArcsPlayer:is_power_negative()
     return false
 end
 
+function ArcsPlayer:objective_score(objective_marker)
+    -- Calculate objective score from marker position (same pattern as power)
+    local objective_pos_x = objective_marker and objective_marker.getPosition().x or 0
+    local base_objective = math.floor((objective_pos_x + 13.26) / 0.655)
+    if base_objective < 0 then base_objective = 0 end
+    return base_objective
+end
+
 function ArcsPlayer:update_score()
     self.score_board = getObjectFromGUID(
         player_pieces[self.color]["components"]["score_board"])
@@ -405,6 +414,9 @@ function ArcsPlayer:update_score()
     self.trophies = trophies_zone and #trophies_zone.getObjects() or 0
     self.keeper = self:count("Relic")
     self.empath = self:count("Psionic")
+    local objective_marker = getObjectFromGUID(
+    player_pieces[self.color]["components"].objective)
+    self.objective = self:objective_score(objective_marker)
 
     self.score_board.editButton({
         index = 0,
@@ -465,6 +477,15 @@ function ArcsPlayer:update_score()
     self.score_board.editButton({
         index = 13,
         label = self.empath,
+        font_color = (empath_active and gold_color or white_color)
+    })
+    self.score_board.editButton({
+        index = 14,
+        label = self.objective
+    })
+    self.score_board.editButton({
+        index = 15,
+        label = self.objective,
         font_color = (empath_active and gold_color or white_color)
     })
 end
@@ -659,6 +680,30 @@ function ArcsPlayer:create_score()
         font_size = 500,
         font_color = text_color
     })
+    -- 7. Objective
+    local objective_pos = Vector({-3.075, 0.11, score_row})
+    self.score_board.createButton({
+        function_owner = self,
+        click_function = "doNothing",
+        position = objective_pos + shadow,
+        rotation = {0, 0, 0},
+        width = 0,
+        height = 0,
+        font_size = 525,
+        font_color = {0, 0, 0}
+    })
+    self.score_board.createButton({
+        function_owner = self,
+        click_function = "doNothing",
+        position = objective_pos,
+        rotation = {0, 0, 0},
+        width = 0,
+        height = 0,
+        font_size = 500,
+        font_color = text_color
+    })
+    
+
 
     self:update_score()
 end

@@ -1,5 +1,6 @@
 local authors = "Quinnsicle, Scyth02, McChew, fallspectrum, Laurens"
 local version = "1.0"
+local game_id = "" -- unique ID for this game session, generated on first load
 
 require("src/GUIDs")
 
@@ -8,7 +9,7 @@ available_colors = {"White", "Yellow", "Red", "Teal", "Pink"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = true
+debug = false
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -184,6 +185,12 @@ local Timer = require("src/Timer")
 local LOG = require("src/LOG")
 local SheetsSender = require("src/SheetsSender")
 
+-- Generate a unique ID for this game session
+local function generate_game_id()
+    local seed = os.time() * 1000 + math.random(1, 999)
+    return string.format("%X", seed)
+end
+
 function assignPlayerToAvailableColor(player, color)
     local color = table.remove(available_colors, 1)
     broadcastToAll("\nAssigning " .. player.steam_name .. " to color " .. color)
@@ -221,7 +228,7 @@ function onObjectDrop(player_color, object) -- this is being called from orig la
     local object_name = object.getName()
 
     -- update power
-    if (object_name == "Power") then
+    if (object_name == "Power" or object_name == "Objective") then
         local power_color = object.getDescription()
         local player = get_arcs_player(power_color)
         Wait.time(function()
@@ -1738,6 +1745,44 @@ function setup_custom_game()
     if player_count >= 5 then -- also happens for 4? -- fix this?
       BaseGame.adjust_action_deck_for_5p()
     end
+
+    -- Ensure initiative is initialized for custom setups: scan each player's initiative zone
+    pcall(function()
+      local initiative_guids = { initiative_GUID, seized_initiative_GUID }
+      for _, p in ipairs(active_players) do
+        local color = p.color
+        local zone_guid = nil
+        -- try player_pieces_GUIDs table first (works for custom setups)
+        if player_pieces_GUIDs and player_pieces_GUIDs[color] and player_pieces_GUIDs[color].initiative_zone then
+          zone_guid = player_pieces_GUIDs[color].initiative_zone
+        end
+        -- fallback: try arcs player's components if present
+        if not zone_guid and p.components and p.components.initiative_zone then zone_guid = p.components.initiative_zone end
+        if zone_guid then
+          local zone = getObjectFromGUID(zone_guid)
+          if zone and type(zone.getObjects) == "function" then
+            local ok, objs = pcall(function() return zone.getObjects() end)
+            if ok and objs then
+              for _, obj in ipairs(objs) do
+                local guid = nil
+                pcall(function() if obj.getGUID then guid = obj.getGUID() end end)
+                if not guid and obj.guid then guid = obj.guid end
+                if guid then
+                  for _, target in ipairs(initiative_guids) do
+                    if tostring(guid) == tostring(target) then
+                      initiative_player = color
+                      Global.setVar("initiative_player", initiative_player)
+                      broadcastToAll("Initiative initialized to " .. tostring(color) .. " (custom setup)", {0.2,0.8,0.2})
+                      return
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end)
 end
 
 ----------------------------------------------------
@@ -1801,6 +1846,9 @@ function onLoad(script_state)
       return JSON.decode(script_state)
     end)
     if ok and state then
+      if state.game_id then
+        game_id = state.game_id
+      end
       if state.initiative then
         initiative_player = state.initiative.player or initiative_player
         initiative_player_position = state.initiative.position or initiative_player_position
@@ -1810,6 +1858,13 @@ function onLoad(script_state)
       end
     end
   end
+  -- Generate a new game ID if not already present
+  if not game_id or game_id == "" then
+    game_id = generate_game_id()
+    broadcastToAll("Game ID: " .. game_id, {0.8, 0.8, 0.2})
+  end
+  -- Store game_id in Global so other modules can access it
+  Global.setVar("game_id", game_id)
     -- create a blank table to store the Wait.conditions in
     zoneWaits = {}
 
@@ -1935,6 +1990,7 @@ end
 
   function onSave()
     local state = {
+      game_id = game_id,
       initiative = {
         player = initiative_player,
         position = initiative_player_position
