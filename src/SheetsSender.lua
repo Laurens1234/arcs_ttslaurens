@@ -1,7 +1,7 @@
 -- Simple Sheets sender for testing
 -- This module exposes a global UI callback `send_scores_to_sheet_ui`
 
-local WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwJXl_bU4d7ZxlhJ0a1fiROy2Haz3qkIodoe-8IdSQL3xn-IW7YmWBpW3m28xckoFQyug/exec"
+local WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwvilhnP9YCvgsZKH5Tx0WmugvjwYVEGQgLvNoj6v76SI0pDGUR1JObWBipYnv_5_0PhQ/exec"
 
 local SheetsSender = {}
 -- last computed preview rows (table form) so Send Now posts the exact preview
@@ -30,6 +30,44 @@ local function get_player_colors(players)
         table.insert(colors, get_player_color(p))
     end
     return colors
+end
+
+local function get_sheets_player_roster()
+    local roster = nil
+    pcall(function()
+        roster = Global.getTable("starting_players")
+    end)
+    if type(roster) == "table" and #roster > 0 then
+        return roster
+    end
+
+    pcall(function()
+        roster = Global.getVar("starting_players")
+    end)
+    if type(roster) == "table" and #roster > 0 then
+        return roster
+    end
+
+    local ok_ordered, ordered = pcall(function() return Global.call("getOrderedPlayers", {true}) end)
+    if ok_ordered and ordered and type(ordered) == "table" and #ordered > 0 then
+        return ordered
+    end
+
+    pcall(function()
+        roster = Global.getVar("active_players")
+    end)
+    if type(roster) == "table" and #roster > 0 then
+        return roster
+    end
+
+    pcall(function()
+        roster = Global.getTable("active_players")
+    end)
+    if type(roster) == "table" and #roster > 0 then
+        return roster
+    end
+
+    return roster or {}
 end
 
 -- Convert a TTS color name (e.g., "Pink") to a hex string like "#RRGGBB".
@@ -131,7 +169,7 @@ local function resolve_initiative_player_color()
         seated = players
     end)
 
-    broadcastToAll("Sheets: resolve_initiative_player_color() called, initiative_GUID=" .. tostring(initiative_GUID) .. ", seized=" .. tostring(seized_initiative_GUID), {0.8, 0.8, 0.2})
+    -- broadcastToAll("Sheets: resolve_initiative_player_color() called, initiative_GUID=" .. tostring(initiative_GUID) .. ", seized=" .. tostring(seized_initiative_GUID), {0.8, 0.8, 0.2})
 
     -- First: scan each player's initiative zone for the marker
     for _, p in ipairs(seated) do
@@ -143,22 +181,22 @@ local function resolve_initiative_player_color()
             zone_guid = player_pieces_GUIDs[color].initiative_zone
         end
         
-        broadcastToAll("Sheets: checking " .. tostring(color) .. " zone_guid=" .. tostring(zone_guid), {0.6, 0.6, 0.9})
+        -- broadcastToAll("Sheets: checking " .. tostring(color) .. " zone_guid=" .. tostring(zone_guid), {0.6, 0.6, 0.9})
         if zone_guid then
             local zone = getObjectFromGUID(zone_guid)
             if zone and type(zone.getObjects) == "function" then
                 local ok_zone, objs = pcall(function() return zone.getObjects() end)
                 if ok_zone and objs then
-                    broadcastToAll("Sheets: zone has " .. tostring(#objs) .. " objects", {0.6, 0.6, 0.9})
+                    -- broadcastToAll("Sheets: zone has " .. tostring(#objs) .. " objects", {0.6, 0.6, 0.9})
                     for _, obj in ipairs(objs) do
                         local guid = nil
                         pcall(function() if obj.getGUID then guid = obj.getGUID() end end)
                         if not guid and obj.guid then guid = obj.guid end
                         if guid then
-                            broadcastToAll("Sheets: found object guid=" .. tostring(guid), {0.6, 0.6, 0.9})
+                            -- broadcastToAll("Sheets: found object guid=" .. tostring(guid), {0.6, 0.6, 0.9})
                             for _, target in ipairs(initiative_guids) do
                                 if tostring(guid) == tostring(target) then
-                                    broadcastToAll("Sheets: MATCHED initiative for " .. tostring(color), {0.2, 0.8, 0.2})
+                                    -- broadcastToAll("Sheets: MATCHED initiative for " .. tostring(color), {0.2, 0.8, 0.2})
                                     return color
                                 end
                             end
@@ -173,7 +211,7 @@ local function resolve_initiative_player_color()
     for _, init_guid in ipairs(initiative_guids) do
         local init_obj = getObjectFromGUID(tostring(init_guid))
         if init_obj then
-            broadcastToAll("Sheets: found initiative object " .. tostring(init_guid) .. " directly", {0.8, 0.6, 0.2})
+            -- broadcastToAll("Sheets: found initiative object " .. tostring(init_guid) .. " directly", {0.8, 0.6, 0.2})
             -- Now check which player's initiative zone contains this object
             for _, p in ipairs(seated) do
                 local color = get_player_color(p)
@@ -191,7 +229,7 @@ local function resolve_initiative_player_color()
                                 pcall(function() if obj.getGUID then guid = obj.getGUID() end end)
                                 if not guid and obj.guid then guid = obj.guid end
                                 if guid and tostring(guid) == tostring(init_guid) then
-                                    broadcastToAll("Sheets: MATCHED initiative (fallback) for " .. tostring(color), {0.2, 0.8, 0.2})
+                                    -- broadcastToAll("Sheets: MATCHED initiative (fallback) for " .. tostring(color), {0.2, 0.8, 0.2})
                                     return color
                                 end
                             end
@@ -202,7 +240,7 @@ local function resolve_initiative_player_color()
         end
     end
 
-    broadcastToAll("Sheets: NO initiative player detected", {0.8, 0.2, 0.2})
+    -- broadcastToAll("Sheets: NO initiative player detected", {0.8, 0.2, 0.2})
     return nil
 end
 
@@ -343,24 +381,20 @@ _G["send_scores_to_sheet_ui"] = send_simple_test
 
 -- Open a preview UI showing the payload to be sent (sample data for now)
 local function generate_preview_xml(active)
-    -- Prefer ordered players from Global if available; fall back to provided/active vars
-    local ok_ordered, ordered = pcall(function() return Global.call("getOrderedPlayers", {true}) end)
-    if ok_ordered and ordered and type(ordered) == "table" and #ordered > 0 then
-        local ordered_colors = get_player_colors(ordered)
-        if last_preview_order_colors and same_color_set(last_preview_order_colors, ordered_colors) then
-            active = order_players_like(ordered, last_preview_order_colors)
+    -- Prefer the stored game roster so players who leave mid-game still appear in the sheet payload.
+    local roster = get_sheets_player_roster()
+    if roster and type(roster) == "table" and #roster > 0 then
+        local roster_colors = get_player_colors(roster)
+        if last_preview_order_colors and same_color_set(last_preview_order_colors, roster_colors) then
+            active = order_players_like(roster, last_preview_order_colors)
         else
-            active = ordered
-            last_preview_order_colors = ordered_colors
+            active = roster
+            last_preview_order_colors = roster_colors
         end
     else
-        active = active or Global.getVar("active_players") or Global.getTable("active_players") or {}
-        local active_colors = get_player_colors(active)
-        if last_preview_order_colors and same_color_set(last_preview_order_colors, active_colors) then
-            active = order_players_like(active, last_preview_order_colors)
-        end
+        active = active or {}
     end
-    broadcastToAll("Sheets preview: generate_preview_xml active count=" .. tostring(#active), {0.6,0.6,0.9})
+    -- broadcastToAll("Sheets preview: generate_preview_xml active count=" .. tostring(#active), {0.6,0.6,0.9})
 
     -- Get game ID from Global
     local game_id = ""
@@ -385,6 +419,8 @@ local function generate_preview_xml(active)
             <Text text="Area" color="#dcdcdc" fontSize="16" preferredWidth="480" />
             <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
             <Text text="Power" color="#dcdcdc" fontSize="16" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="Objective" color="#dcdcdc" fontSize="16" preferredWidth="90" />
             <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
             <Text text="Hand#" color="#dcdcdc" fontSize="16" preferredWidth="70" />
             <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
@@ -421,6 +457,7 @@ local function generate_preview_xml(active)
         for _, p in ipairs(active) do
             local name = nil
             local power = ""
+            local objective = ""
             local hand_size = ""
             local tycoon = ""
             local captives = ""
@@ -459,6 +496,7 @@ local function generate_preview_xml(active)
             if arcs_player and type(arcs_player.update_score) == "function" then
                 pcall(function() arcs_player:update_score() end)
                 power = arcs_player.power or ""
+                objective = arcs_player.objective or ""
                 hand_size = arcs_player.hand_size or ""
                 tycoon = arcs_player.tycoon or ""
                 captives = arcs_player.captives or ""
@@ -485,9 +523,9 @@ local function generate_preview_xml(active)
                         local dbg = {}
                         for idx, lbl in pairs(btnMap) do table.insert(dbg, tostring(idx) .. ":" .. tostring(lbl)) end
                         if #dbg > 0 then
-                            broadcastToAll("Sheets preview: score_board labels for " .. tostring(name) .. " -> " .. table.concat(dbg, ", "), {0.4,0.6,1})
+                            -- broadcastToAll("Sheets preview: score_board labels for " .. tostring(name) .. " -> " .. table.concat(dbg, ", "), {0.4,0.6,1})
                         else
-                            broadcastToAll("Sheets preview: no score_board labels found for " .. tostring(name), {1,0.6,0.2})
+                            -- broadcastToAll("Sheets preview: no score_board labels found for " .. tostring(name), {1,0.6,0.2})
                         end
                         local function labelOr(orig, idx)
                             local v = btnMap[idx]
@@ -495,6 +533,7 @@ local function generate_preview_xml(active)
                             return tostring(v)
                         end
                         power = labelOr(power, 0)
+                        objective = labelOr(objective, 14)
                         hand_size = labelOr(hand_size, 2)
                         tycoon = labelOr(tycoon, 4)
                         captives = labelOr(captives, 6)
@@ -548,7 +587,7 @@ local function generate_preview_xml(active)
             if area_zone_obj and type(area_zone_obj.getObjects) == "function" then
                 local ok, objs = pcall(function() return area_zone_obj.getObjects() end)
                 if ok and objs then
-                    broadcastToAll("Sheets preview: found " .. tostring(#objs) .. " area objects for " .. tostring(name), {0.3,0.6,0.9})
+                    -- broadcastToAll("Sheets preview: found " .. tostring(#objs) .. " area objects for " .. tostring(name), {0.3,0.6,0.9})
                     for _, o in ipairs(objs) do
                         -- detect object GUID robustly
                         local og = nil
@@ -573,10 +612,10 @@ local function generate_preview_xml(active)
                         end
                     end
                 else
-                    broadcastToAll("Sheets preview: could not read area objects for " .. tostring(name), {1,0.4,0.2})
+                    -- broadcastToAll("Sheets preview: could not read area objects for " .. tostring(name), {1,0.4,0.2})
                 end
             else
-                broadcastToAll("Sheets preview: no area zone object for " .. tostring(name), {1,0.4,0.2})
+                -- broadcastToAll("Sheets preview: no area zone object for " .. tostring(name), {1,0.4,0.2})
             end
 
             -- hand_zone
@@ -590,17 +629,17 @@ local function generate_preview_xml(active)
             if hand_zone_obj and type(hand_zone_obj.getObjects) == "function" then
                 local ok, objs = pcall(function() return hand_zone_obj.getObjects() end)
                 if ok and objs then
-                    broadcastToAll("Sheets preview: found " .. tostring(#objs) .. " hand objects for " .. tostring(name), {0.3,0.6,0.9})
+                    -- broadcastToAll("Sheets preview: found " .. tostring(#objs) .. " hand objects for " .. tostring(name), {0.3,0.6,0.9})
                     for _, o in ipairs(objs) do
                         if is_card_object(o) then
                             push_card_obj(o, "hand", hand_zone_obj)
                         end
                     end
                 else
-                    broadcastToAll("Sheets preview: could not read hand objects for " .. tostring(name), {1,0.4,0.2})
+                    -- broadcastToAll("Sheets preview: could not read hand objects for " .. tostring(name), {1,0.4,0.2})
                 end
             else
-                broadcastToAll("Sheets preview: no hand zone object for " .. tostring(name), {1,0.4,0.2})
+                -- broadcastToAll("Sheets preview: no hand zone object for " .. tostring(name), {1,0.4,0.2})
             end
 
             -- initiative detection
@@ -630,6 +669,7 @@ local function generate_preview_xml(active)
                 color_hex = color_to_hex(color_name),
                 initiative = has_initiative,
                 power = tostring(power),
+                objective = tostring(objective),
                 hand_size = tostring(hand_size),
                 tycoon = tostring(tycoon),
                 captives = tostring(captives),
@@ -656,6 +696,8 @@ local function generate_preview_xml(active)
             <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
             <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
             <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
+            <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
+            <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
             <Text text="%s" color="white" fontSize="14" preferredWidth="70" />
             <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
             <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
@@ -668,7 +710,7 @@ local function generate_preview_xml(active)
             <Panel preferredWidth="1" preferredHeight="18" color="#FFFFFF" />
             <Text text="%s" color="white" fontSize="14" preferredWidth="90" />
         </HorizontalLayout>
-            ]], color_to_hex(((arcs_player and arcs_player.color) or ((type(p) == "table" and p.color) and p.color) or (type(p) == "string" and p) or tostring(p))), name, (arcs_player and arcs_player.color) or ((type(p) == "table" and p.color) and p.color) or (type(p) == "string" and p) or tostring(p), init_display, area_str, tostring(power), tostring(hand_size), tostring(tycoon), tostring(captives), tostring(trophies), tostring(keeper), tostring(empath)))
+            ]], color_to_hex(((arcs_player and arcs_player.color) or ((type(p) == "table" and p.color) and p.color) or (type(p) == "string" and p) or tostring(p))), name, (arcs_player and arcs_player.color) or ((type(p) == "table" and p.color) and p.color) or (type(p) == "string" and p) or tostring(p), init_display, area_str, tostring(power), tostring(objective), tostring(hand_size), tostring(tycoon), tostring(captives), tostring(trophies), tostring(keeper), tostring(empath)))
             table.insert(rows, '<Panel preferredWidth="1500" preferredHeight="1" color="#FFFFFF" />')
         -- replace the fields above: show initiative marker as check if present
         end
@@ -711,21 +753,15 @@ local function update_act_dropdown(player, value, id)
 end
 
 local function open_preview(player, value, id)
-    broadcastToAll("Sheets preview: open_preview called", {0.3,0.7,0.3})
+    -- broadcastToAll("Sheets preview: open_preview called", {0.3,0.7,0.3})
     -- Clear tooltip so it doesn't persist
     pcall(function()
         UI.setAttribute("sheetsSendBtn", "tooltip", "")
         UI.setAttribute("sheetsSendBtn", "tooltipBackgroundColor", "")
     end)
-    -- Prefer ordered players from Global if available
-    local active = nil
-    local ok_ordered, ordered = pcall(function() return Global.call("getOrderedPlayers", {true}) end)
-    if ok_ordered and ordered and type(ordered) == "table" and #ordered > 0 then
-        active = ordered
-    else
-        active = Global.getVar("active_players") or Global.getTable("active_players") or {}
-    end
-    broadcastToAll("Sheets preview: open_preview active count=" .. tostring(#active), {0.3,0.7,0.3})
+    -- Prefer the stored game roster so a player leaving does not drop them from the sheet snapshot.
+    local active = get_sheets_player_roster()
+    -- broadcastToAll("Sheets preview: open_preview active count=" .. tostring(#active), {0.3,0.7,0.3})
     -- Debug: broadcast resolved names to help diagnose empty name issue
     local resolved = {}
     for _, p in ipairs(active) do
@@ -746,9 +782,9 @@ local function open_preview(player, value, id)
         table.insert(resolved, name)
     end
     if #resolved == 0 then
-        broadcastToAll("Sheets Preview: no active players found", {1,0.5,0})
+        -- broadcastToAll("Sheets Preview: no active players found", {1,0.5,0})
     else
-        broadcastToAll("Sheets Preview players: " .. table.concat(resolved, ", "), {0.2,0.8,0.2})
+        -- broadcastToAll("Sheets Preview players: " .. table.concat(resolved, ", "), {0.2,0.8,0.2})
     end
     local previewXml = generate_preview_xml(active)
     UI.setXml(previewXml)
@@ -781,10 +817,11 @@ local function send_preview_to_sheet(player, value, id)
             if ok and ap then arcs_player = ap end
         elseif type(p) == "table" and p.color then arcs_player = p end
 
-        local power = ""; local hand_size = ""; local tycoon = ""; local captives = ""; local trophies = ""; local keeper = ""; local empath = ""
+        local power = ""; local objective = ""; local hand_size = ""; local tycoon = ""; local captives = ""; local trophies = ""; local keeper = ""; local empath = ""
         if arcs_player and type(arcs_player.update_score) == "function" then
             pcall(function() arcs_player:update_score() end)
             power = arcs_player.power or ""
+            objective = arcs_player.objective or ""
             hand_size = arcs_player.hand_size or ""
             tycoon = arcs_player.tycoon or ""
             captives = arcs_player.captives or ""
@@ -809,6 +846,7 @@ local function send_preview_to_sheet(player, value, id)
                         return tostring(v)
                     end
                     power = labelOr(power, 0)
+                    objective = labelOr(objective, 1)
                     hand_size = labelOr(hand_size, 2)
                     tycoon = labelOr(tycoon, 4)
                     captives = labelOr(captives, 6)
@@ -832,6 +870,7 @@ local function send_preview_to_sheet(player, value, id)
             color_hex = color_hex,
             initiative = has_initiative,
             power = power,
+            objective = objective,
             hand_size = hand_size,
             tycoon = tycoon,
             captives = captives,
@@ -858,6 +897,7 @@ local function send_preview_to_sheet(player, value, id)
     pcall(function()
         game_id = Global.getVar("game_id") or ""
     end)
+    broadcastToAll("Sheets: game_id being sent: " .. tostring(game_id), {0.8, 0.8, 0.2})
 
     local payload = { game_id = game_id, players = rows_to_send, notes = notes, act = last_selected_act }
     local body_json = JSON.encode(payload)

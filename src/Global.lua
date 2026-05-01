@@ -23,6 +23,7 @@ with_pnp3_leaders = false
 dont_use_base_and_pack_leaders = false
 use_scavengers_scouts_deck = false
 is_auto_end_round_enabled = false -- toggle end round
+is_basegame_setup = false
 turn_count = 0
 leader_draft_count = nil
 lore_draft_count = nil
@@ -112,6 +113,7 @@ oop_components = {
 initiative_player_position = {-2, 0, 0}
 
 active_players = {}
+starting_players = {}
 active_ambitions = {
     c9e0ee = "",
     a9b02a = "",
@@ -1703,6 +1705,20 @@ function set_active_players(players)
     active_players = players
 end
 
+function save_game_starting_players()
+  starting_players = {}
+  if type(active_players) ~= "table" then
+    Global.setVar("starting_players", starting_players)
+    return
+  end
+
+  for _, player in ipairs(active_players) do
+    table.insert(starting_players, player)
+  end
+
+  Global.setVar("starting_players", starting_players)
+end
+
 function setup_custom_game()
 
     BaseGame.destroy_grey_setup_menu_objects()
@@ -1855,13 +1871,14 @@ function onLoad(script_state)
       end
       if state.settings then
         is_face_up_discard_active = state.settings.is_face_up_discard_active or is_face_up_discard_active
+        is_basegame_setup = state.settings.is_basegame_setup or is_basegame_setup
       end
     end
   end
   -- Generate a new game ID if not already present
   if not game_id or game_id == "" then
     game_id = generate_game_id()
-    broadcastToAll("Game ID: " .. game_id, {0.8, 0.8, 0.2})
+    LOG.INFO("Game ID: " .. game_id, {0.8, 0.8, 0.2})
   end
   -- Store game_id in Global so other modules can access it
   Global.setVar("game_id", game_id)
@@ -1996,7 +2013,8 @@ end
         position = initiative_player_position
       },
       settings = {
-        is_face_up_discard_active = is_face_up_discard_active
+        is_face_up_discard_active = is_face_up_discard_active,
+        is_basegame_setup = is_basegame_setup
       }
     }
     return JSON.encode(state)

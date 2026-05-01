@@ -417,6 +417,7 @@ function ArcsPlayer:update_score()
     local objective_marker = getObjectFromGUID(
     player_pieces[self.color]["components"].objective)
     self.objective = self:objective_score(objective_marker)
+    local show_objective = not Global.getVar("is_basegame_setup")
 
     self.score_board.editButton({
         index = 0,
@@ -479,15 +480,26 @@ function ArcsPlayer:update_score()
         label = self.empath,
         font_color = (empath_active and gold_color or white_color)
     })
-    self.score_board.editButton({
-        index = 14,
-        label = self.objective
-    })
-    self.score_board.editButton({
-        index = 15,
-        label = self.objective,
-        font_color = (empath_active and gold_color or white_color)
-    })
+    if show_objective then
+        self.score_board.editButton({
+            index = 14,
+            label = self.objective
+        })
+        self.score_board.editButton({
+            index = 15,
+            label = self.objective,
+            font_color = (empath_active and gold_color or white_color)
+        })
+    else
+        self.score_board.editButton({
+            index = 14,
+            label = ""
+        })
+        self.score_board.editButton({
+            index = 15,
+            label = ""
+        })
+    end
 end
 
 function ArcsPlayer:count(resource)

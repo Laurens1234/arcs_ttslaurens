@@ -958,11 +958,13 @@ function cycle_initiative_choice(obj, color, alt_click)
 end
 
 function setup_base_game()
+    Global.setVar("is_basegame_setup", true)
     local base_setup_success = BaseGame.setup(Global.getVar("with_leaders"),
         Global.getVar("with_more_to_explore"),
         Global.getVar("with_miniatures"))
 
     if (base_setup_success and Global.getVar("with_leaders") and not Global.getVar("with_pnp2_lost_vaults")) then
+        Global.call("save_game_starting_players")
         local sc2obj = nil
         if setup_control_2 ~= nil then
             sc2obj = getObjectFromGUID(setup_control_2)
@@ -982,6 +984,7 @@ function setup_base_game()
     end
 
     if (base_setup_success) then
+        Global.call("save_game_starting_players")
         local sc2obj = nil
         if setup_control_2 ~= nil then
             sc2obj = getObjectFromGUID(setup_control_2)
@@ -1002,6 +1005,7 @@ function setup_base_game()
 end
 
 function setup_leaders()
+   -- Global.setVar("is_basegame_setup", false)
     if BaseGame.setup_leaders() == false then
         broadcastToAll("\nPlace chosen leader near player board to continue.", {
             r = 1,
@@ -1015,11 +1019,13 @@ function setup_leaders()
 end
 
 function setup_campaign()
+    Global.setVar("is_basegame_setup", false)
     local campaign_setup_success = Campaign.setup(Global.getVar("with_leaders"),
         Global.getVar("with_more_to_explore"),
         Global.getVar("with_miniatures"))
 
     if (campaign_setup_success) then
+        Global.call("save_game_starting_players")
         local sc2obj = nil
         if setup_control_2 ~= nil then
             sc2obj = getObjectFromGUID(setup_control_2)
@@ -1039,7 +1045,9 @@ function setup_campaign()
 end
 
 function custom_setup()
+    Global.setVar("is_basegame_setup", false)
     Global.call("setup_custom_game")
+    Global.call("save_game_starting_players")
     local sc2obj = nil
     if setup_control_2 ~= nil then
         sc2obj = getObjectFromGUID(setup_control_2)

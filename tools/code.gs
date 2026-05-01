@@ -81,8 +81,9 @@ function doPost(e) {
       payload.players.forEach(function(p) {
         const name = p.name || "";
         const color = p.color || "";
-        const power = (p.power !== undefined) ? p.power : ((p.scores && p.scores[1]) ? p.scores[1] : "");
-        const hand  = (p.hand_size !== undefined) ? p.hand_size : ((p.scores && p.scores[3]) ? p.scores[3] : "");
+        const power = (p.power !== undefined) ? p.power : ((p.scores && p.scores[0]) ? p.scores[0] : "");
+        const objective = (p.objective !== undefined) ? p.objective : ((p.scores && p.scores[1]) ? p.scores[1] : "");
+        const hand  = (p.hand_size !== undefined) ? p.hand_size : ((p.scores && p.scores[2]) ? p.scores[2] : "");
         const tycoon = (p.tycoon !== undefined) ? p.tycoon : ((p.scores && p.scores[4]) ? p.scores[4] : "");
         const captives = (p.captives !== undefined) ? p.captives : ((p.scores && p.scores[6]) ? p.scores[6] : "");
         const trophies = (p.trophies !== undefined) ? p.trophies : ((p.scores && p.scores[8]) ? p.scores[8] : "");
@@ -111,7 +112,7 @@ function doPost(e) {
         }
 
         // Append each field to its own column. Last column keeps full JSON for debug.
-        sheet.appendRow([ts, game_id, act, notes, name, color, initiative, power, hand, tycoon, captives, trophies, keeper, empath, cardsStr, JSON.stringify(p)]);
+        sheet.appendRow([ts, game_id, act, notes, name, color, initiative, power, objective, hand, tycoon, captives, trophies, keeper, empath, cardsStr, JSON.stringify(p)]);
       });
       return ContentService.createTextOutput("OK").setMimeType(ContentService.MimeType.TEXT);
     }
