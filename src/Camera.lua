@@ -1,4 +1,5 @@
 local Timer = require("src/Timer")
+local SheetsSender = require("src/SheetsSender")
 
 local Camera = {}
 
@@ -91,7 +92,8 @@ function loadCameraTimerMenu(menuOpen)
     end
 
     local controlsXml = Camera.generateControlsXml(active_players, Timer.running)
-    local menuXml = Camera.generateMenuXml(menuOpen, controlsXml)
+    local sheetsXml = SheetsSender.generateButtonXml()
+    local menuXml = Camera.generateMenuXml(menuOpen, controlsXml, sheetsXml)
     UI.setXml(menuXml)
 end
 
@@ -124,12 +126,14 @@ function Camera.generateControlsXml(active_players, timer_running)
     )
 end
 
-function Camera.generateMenuXml(menuOpen, controlsXml)
+function Camera.generateMenuXml(menuOpen, controlsXml, sheetsXml)
     return string.format([[
         <Defaults>
             <Button color="black" fontSize="12" />
             <Button class="cameraControl" onClick="onCameraClick" />
         </Defaults>
+
+        %s
 
         <VerticalLayout
             id="cameraLayout"
@@ -155,16 +159,7 @@ function Camera.generateMenuXml(menuOpen, controlsXml)
                 tooltipTextColor="Black"
                 >
             </Button>
-            <Button
-                onClick="send_scores_to_sheet_ui"
-                text="Send Scores"
-                textColor="white"
-                color="#2e8b57"
-                tooltip="Send each player's cards and scoreboard to the spreadsheet"
-                tooltipBackgroundColor="#2e8b57"
-                tooltipTextColor="Black"
-                >
-            </Button>
+            
             <VerticalLayout
                 id="cameraControls"
                 height="320"
@@ -174,7 +169,7 @@ function Camera.generateMenuXml(menuOpen, controlsXml)
                 %s
             </VerticalLayout>
         </VerticalLayout>
-    ]], tostring(menuOpen), controlsXml)
+    ]], sheetsXml, tostring(menuOpen), controlsXml)
 end
 
 return Camera

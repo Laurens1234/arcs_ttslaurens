@@ -2,12 +2,46 @@ const SHEET_ID = "1yGuP7IcjnG_jbua4KH57D_68VaEhwOPhMT2yJkxG838";
 
 function doPost(e) {
   try {
-    if (!e || !e.postData || !e.postData.contents) {
-      Logger.log('doPost called without postData; call via HTTP POST or use testDoPost()');
-      return ContentService.createTextOutput('No postData; use HTTP POST or testDoPost').setMimeType(ContentService.MimeType.TEXT);
+    // Log incoming request for debugging
+    Logger.log('doPost incoming e: ' + JSON.stringify(e));
+
+    if (!e) {
+      Logger.log('doPost called without event object');
+      return ContentService.createTextOutput('No event object').setMimeType(ContentService.MimeType.TEXT);
     }
 
-    const payload = JSON.parse(e.postData.contents || "{}");
+    // Determine raw content: prefer postData.contents, fall back to e.parameter.payload
+    var raw = null;
+    if (e.postData && e.postData.contents) {
+      raw = e.postData.contents;
+      Logger.log('doPost: postData.contents length=' + raw.length + ' type=' + (e.postData.type || ''));
+    } else if (e.parameter && e.parameter.payload) {
+      raw = e.parameter.payload;
+      Logger.log('doPost: payload found in e.parameter');
+    } else {
+      Logger.log('doPost: no postData.contents and no e.parameter.payload');
+      raw = "";
+    }
+
+    // If body is form-encoded like 'payload=%7B...%7D', extract and decode
+    if (raw && raw.indexOf('payload=') === 0) {
+      try {
+        raw = decodeURIComponent(raw.substring(8));
+        Logger.log('doPost: decoded form payload length=' + raw.length);
+      } catch (err) {
+        Logger.log('doPost: decodeURIComponent failed: ' + err);
+      }
+    }
+
+    Logger.log('doPost: raw payload (first 1000 chars): ' + (raw ? raw.substring(0, 1000) : ''));
+
+    var payload = {};
+    try {
+      if (raw && raw.trim() !== '') payload = JSON.parse(raw);
+    } catch (err) {
+      Logger.log('doPost JSON.parse error: ' + err + ' raw=' + raw.substring(0,200));
+      payload = {};
+    }
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const sheet = ss.getSheetByName("Sheet1") || ss.getSheets()[0];
     const ts = new Date();
@@ -21,10 +55,19 @@ function doPost(e) {
     // If payload contains players (SubmitGame format)
     if (payload.players && Array.isArray(payload.players)) {
       payload.players.forEach(function(p) {
-        const cards = (p.cards || []).join(" | ");
-        const power = (p.scores && p.scores[1]) ? p.scores[1] : "";
-        const hand  = (p.scores && p.scores[3]) ? p.scores[3] : "";
-        sheet.appendRow([ts, p.color || "", cards, power, hand, JSON.stringify(p.scores || {})]);
+        // Support both the old SubmitGame shape (p.scores array) and the
+        // newer shape where each player has named fields (power, hand_size, etc.).
+        const name = p.name || "";
+        const color = p.color || "";
+        const power = (p.power !== undefined) ? p.power : ((p.scores && p.scores[1]) ? p.scores[1] : "");
+        const hand  = (p.hand_size !== undefined) ? p.hand_size : ((p.scores && p.scores[3]) ? p.scores[3] : "");
+        const tycoon = (p.tycoon !== undefined) ? p.tycoon : ((p.scores && p.scores[4]) ? p.scores[4] : "");
+        const captives = (p.captives !== undefined) ? p.captives : ((p.scores && p.scores[6]) ? p.scores[6] : "");
+        const trophies = (p.trophies !== undefined) ? p.trophies : ((p.scores && p.scores[8]) ? p.scores[8] : "");
+        const keeper = (p.keeper !== undefined) ? p.keeper : ((p.scores && p.scores[10]) ? p.scores[10] : "");
+        const empath = (p.empath !== undefined) ? p.empath : ((p.scores && p.scores[12]) ? p.scores[12] : "");
+        // Append each field to its own column. Last column keeps full JSON for debug.
+        sheet.appendRow([ts, name, color, power, hand, tycoon, captives, trophies, keeper, empath, JSON.stringify(p)]);
       });
       return ContentService.createTextOutput("OK").setMimeType(ContentService.MimeType.TEXT);
     }
