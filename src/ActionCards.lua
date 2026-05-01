@@ -329,14 +329,35 @@ function ActionCards.get_lead_info()
     local lead_zone = getObjectFromGUID(lead_card_zone_GUID)
 
     if (lead_zone) then
+        local lead_obj = nil
         for _, obj in ipairs(lead_zone.getObjects()) do
             if (obj.getName() == "Action Card") then
                 lead = ActionCards.get_info(obj)
                 lead.real_number = lead.number
+                lead_obj = obj
             end
 
             if (obj.getName() == "Zero Marker") then
                 is_ambition_declared = true
+            end
+        end
+
+        -- Fallback: if zero marker wasn't reported in the zone, check proximity
+        -- of the global zero marker object to the lead card (covers "on top" cases)
+        if (not is_ambition_declared) and lead_obj then
+            local ok, zm = pcall(function() return getObjectFromGUID(zero_marker_GUID) end)
+            local zero_marker = ok and zm or nil
+            if zero_marker and zero_marker.getPosition and lead_obj.getPosition then
+                local zmp = zero_marker.getPosition()
+                local leadp = lead_obj.getPosition()
+                -- horizontal distance (x,z plane)
+                local dx = zmp.x - leadp.x
+                local dz = zmp.z - leadp.z
+                local horiz_dist = math.sqrt(dx * dx + dz * dz)
+                -- consider it "on top" if horizontally very close and slightly above
+                if horiz_dist <= 1.2 and (zmp.y - leadp.y) > 0.05 then
+                    is_ambition_declared = true
+                end
             end
         end
     else
