@@ -25,9 +25,26 @@ local setupTableImageOptions = {
         diffuse = "https://steamusercontent-a.akamaihd.net/ugc/15297536227112862/B09A1DE0302BFED6AFF653116F56B110B73F024B/"
     },
     {
-        name = "Planets",
+        name = "Planets 1",
         diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/combined_1.png"
-    }
+    },
+    {
+        name = "Planets 2",
+        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/combined_2.png"
+    },
+    {
+        name = "Planets 3",
+        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/combined_3.png"
+    },
+    {
+        name = "Planets 4",
+        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/combined_4.png"
+    },
+    {
+        name = "Planets 5",
+        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/combined_5.png"
+    },
+    
 }
 
 local optionsText_params = {
