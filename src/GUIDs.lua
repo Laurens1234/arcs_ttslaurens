@@ -1,4 +1,5 @@
 reach_board_GUID = "bb7d21"
+setup_table_GUID = "0b4885"
 
 setup_control_2 = "42caeb"
 setup_control_3 = "5dc1e0"

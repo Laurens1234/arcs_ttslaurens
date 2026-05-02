@@ -19,6 +19,17 @@ local BUTTON_SCALE = {0.3, 0.6, 0.6}
 local BUTTON_WIDTH = 1500
 local BUTTON_HEIGHT = 380
 
+local setupTableImageOptions = {
+    {
+        name = "Default",
+        diffuse = "https://steamusercontent-a.akamaihd.net/ugc/15297536227112862/B09A1DE0302BFED6AFF653116F56B110B73F024B/"
+    },
+    {
+        name = "Beyond the Reach",
+        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs-arsenal/refs/heads/main/background_beyond.png"
+    }
+}
+
 local optionsText_params = {
     click_function = "doNothing",
     function_owner = self,
@@ -333,6 +344,21 @@ local setupChoice_params = {
     font_color = GOLD,
     hover_color = PURPLE
 }
+local setupTableImage_params = {
+    index = 27,
+    click_function = "cycle_setup_table_image",
+    function_owner = self,
+    label = "Table Image:\nDefault",
+    tooltip = "Cycle the setup table image between the available diffuse URLs",
+    position = {-2.56, 0.5, 1.18},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
+    color = BLACK,
+    font_color = GOLD,
+    hover_color = PURPLE
+}
 local initiativeChoice_params = {
     index = 22,
     click_function = "cycle_initiative_choice",
@@ -618,8 +644,9 @@ function onload()
     self.createButton(beyondTheReach_params)
     self.createButton(celestial_params)
     self.createButton(leader_lore_controls_header_params)
-    self.createButton(setup_controls_header_params)    
-    -- must add buttons in the order of the actual indices !!!!!!!!!!
+    self.createButton(setup_controls_header_params)
+    self.createButton(setupTableImage_params)
+    -- must add buttons in the order of the actual indices !!!!!!!!!! lowest in here must have highest index
 
     -- Initialize numeric display labels from globals (resolve default if nil)
     local function resolved_default_count()
@@ -668,6 +695,12 @@ function onload()
             end
         end
         self.editButton({index=21, label = display_label})
+    end
+    -- Initialize table image display
+    do
+        local table_image_index = Global.getVar("setup_table_image_index") or 0
+        local option = setupTableImageOptions[table_image_index + 1] or setupTableImageOptions[1]
+        self.editButton({index=27, label = "Table Image:\n" .. tostring(option.name or "Default")})
     end
     -- Initialize initiative choice display
     do
@@ -925,6 +958,49 @@ function cycle_setup_choice(obj, color, alt_click)
     self.editButton({index=21, label = label})
 end
 
+local function get_setup_table_object()
+    return getObjectFromGUID(setup_table_GUID)
+end
+
+local function get_setup_table_image_index()
+    local index = Global.getVar("setup_table_image_index") or 0
+    if index < 0 or index >= #setupTableImageOptions then
+        return 0
+    end
+    return index
+end
+
+local function apply_setup_table_image(index)
+    local table_obj = get_setup_table_object()
+    if not table_obj then
+        broadcastToAll("Setup table object not found.", {r=1, g=0, b=0})
+        return false
+    end
+
+    local custom = table_obj.getCustomObject()
+    if not custom then
+        broadcastToAll("Setup table is not a custom model.", {r=1, g=0, b=0})
+        return false
+    end
+
+    local option = setupTableImageOptions[index + 1] or setupTableImageOptions[1]
+    custom.diffuse = option.diffuse
+    table_obj.setCustomObject(custom)
+    table_obj.reload()
+    return true
+end
+
+function cycle_setup_table_image(obj, color, alt_click)
+    local current = get_setup_table_image_index()
+    local next_index = (current + 1) % #setupTableImageOptions
+
+    if apply_setup_table_image(next_index) then
+        Global.setVar("setup_table_image_index", next_index)
+        local option = setupTableImageOptions[next_index + 1] or setupTableImageOptions[1]
+        self.editButton({index=27, label = "Table Image:\n" .. tostring(option.name or "Default")})
+    end
+end
+
 function cycle_initiative_choice(obj, color, alt_click)
     local active = Global.call("getOrderedPlayers", {true}) or Global.getTable("active_players") or Player.getPlayers() or {}
     local player_count = #active
@@ -1087,7 +1163,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 26 do
+    for i = 0, 27 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)
