@@ -1425,6 +1425,16 @@ function BaseGame.dealLeaders(player_count)
                 leader_deck.putObject(custom_decks[i])
             end
             leader_deck = target
+            for i, name in ipairs(custom_names) do
+                if name == "Laurens" then
+                    broadcastToAll("Including Celestial Leader Expansion by Laurens")
+                elseif name == "PnP#3" then
+                    broadcastToAll("Including PnP#3 Leader Deck")
+                else
+                    broadcastToAll("Including " .. name .. "'s custom leader deck")
+                end
+            end
+        else
             -- Merge selected custom decks into the base fate deck
             for i, d in ipairs(custom_decks) do
                 leader_deck.putObject(d)

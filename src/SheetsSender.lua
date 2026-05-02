@@ -12,6 +12,8 @@ local last_preview_order_colors = nil
 local last_notes = ""
 -- store selected act
 local last_selected_act = "basegame"
+-- store anonymize names checkbox state
+local last_anonymize_names = false
 local ActionCards = require("src/ActionCards")
 require("src/GUIDs")
 -- special object GUID that indicates the "first regent" tile/object
@@ -666,7 +668,6 @@ local function generate_preview_xml(active)
                 full_name = name,
                 name = name,
                 color = color_name,
-                color_hex = color_to_hex(color_name),
                 initiative = has_initiative,
                 power = tostring(power),
                 objective = tostring(objective),
@@ -723,7 +724,8 @@ local function generate_preview_xml(active)
         <Panel id="sheetsPreviewPanel" rectAlignment="MiddleCenter" allowDragging="true" width="1400" height="900" color="#222222CC" childForceExpandWidth="false" childForceExpandHeight="false">
             <VerticalLayout spacing="8" padding="10" childForceExpandHeight="false" childForceExpandWidth="false">
                 <Text text="ARCS - Game Results Preview" fontSize="24" color="white" />
-                <Text text="Review the results below. Game ID: %s - View full data: https://laurens1234.github.io/arcs-arsenal/data" fontSize="14" color="#dcdcdc" />
+                <Text text="Game ID: %s - You can view collected data here: https://laurens1234.github.io/arcs-arsenal/data" fontSize="14" color="#dcdcdc" />
+                <Text text="Send results to help collect game data." fontSize="13" color="#cfcfcf" />
                 <Text text="You may submit these results at the end of the game or at the end of each Act." fontSize="13" color="#cfcfcf" />
                 %s
                 <HorizontalLayout spacing="8" childForceExpandWidth="false">
@@ -733,19 +735,22 @@ local function generate_preview_xml(active)
                     <InputField id="sheetsNotesInput" text="" characterLimit="500" contentType="TextArea" placeholder="Add notes here..." preferredWidth="400" preferredHeight="18" onValueChanged="update_notes_field" />
                     <Text text="Mode/Act:" color="#dcdcdc" fontSize="14" preferredWidth="40" />
                     <Dropdown id="sheetsActDropdown" onValueChanged="update_act_dropdown" preferredWidth="120" preferredHeight="28">
-                        <Option value="basegame">basegame</Option>
+                        <Option value="basegame">Base</Option>
                         <Option value="Lost Vaults">Lost Vaults</Option>
                         <Option value="Act I">Act I</Option>
                         <Option value="Act II">Act II</Option>
                         <Option value="Act III">Act III</Option>
+                        <Option value="Other">Other</Option>                        
                     </Dropdown>
+                    <Toggle id="sheetsAnonymizeToggle" isOn="%s" onValueChanged="update_anonymize_checkbox" />
+                    <Text text="Anonymize" color="#dcdcdc" fontSize="12" preferredWidth="80" />
                     <Panel preferredWidth="1" flexibleWidth="1" />
-                    <Button text="Request Remove &#10;Last Submission" onClick="send_remove_request_ui" color="#b03060" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="14" />
+                    <Button text="Request Remove &#10;Last Submission" onClick="send_remove_request_ui" color="#bb1717d0" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="14" />
                 </HorizontalLayout>
             </VerticalLayout>
         </Panel>
     </Canvas>
-    ]], game_id, rows_xml)
+    ]], game_id, rows_xml, (last_anonymize_names and "true" or "false"))
 end
 
 local function update_notes_field(player, value, id)
@@ -754,6 +759,20 @@ end
 
 local function update_act_dropdown(player, value, id)
     last_selected_act = tostring(value or "basegame")
+end
+
+local function update_anonymize_checkbox(player, value, id)
+    -- Debug: log what we actually received
+   -- broadcastToAll("Sheets: update_anonymize_checkbox called with value=" .. tostring(value) .. " (type=" .. type(value) .. ")", {1, 1, 0})
+    
+    -- Handle various Toggle value formats
+    if value == true or value == "true" or value == "True" or value == 1 or value == "1" then
+        last_anonymize_names = true
+        broadcastToAll("Sheets: anonymize names = TRUE", {0.2, 0.8, 0.2})
+    else
+        last_anonymize_names = false
+        broadcastToAll("Sheets: anonymize names = FALSE", {0.8, 0.2, 0.2})
+    end
 end
 
 local function open_preview(player, value, id)
@@ -870,12 +889,10 @@ local function send_preview_to_sheet(player, value, id)
         local has_initiative = false
         if initiative_player and color and tostring(initiative_player) == tostring(color) then has_initiative = true end
 
-        local color_hex = color_to_hex(color)
         table.insert(rows, {
             full_name = name,
             name = name,
             color = color,
-            color_hex = color_hex,
             initiative = has_initiative,
             power = power,
             objective = objective,
@@ -894,6 +911,26 @@ local function send_preview_to_sheet(player, value, id)
         rows_to_send = last_preview_rows
     else
         rows_to_send = rows
+    end
+
+    -- Apply anonymization if checkbox is enabled
+    if last_anonymize_names and rows_to_send and type(rows_to_send) == "table" and #rows_to_send > 0 then
+    --    broadcastToAll("Sheets: applying anonymization to " .. tostring(#rows_to_send) .. " rows", {0.2, 0.8, 0.2})
+        local anon_rows = {}
+        for i, row in ipairs(rows_to_send) do
+            local anon_row = {}
+            for k, v in pairs(row) do
+                if k == "full_name" or k == "name" then
+                    anon_row[k] = "Player " .. tostring(i)
+                else
+                    anon_row[k] = v
+                end
+            end
+            table.insert(anon_rows, anon_row)
+        end
+        rows_to_send = anon_rows
+    else
+   --     broadcastToAll("Sheets: anonymize_names=" .. tostring(last_anonymize_names) .. ", rows=" .. tostring(rows_to_send and #rows_to_send or 0), {0.8, 0.6, 0.2})
     end
 
     -- Capture notes from the stored global
@@ -935,6 +972,7 @@ end
 _G["send_preview_to_sheet_ui"] = send_preview_to_sheet
 _G["update_notes_field"] = update_notes_field
 _G["update_act_dropdown"] = update_act_dropdown
+_G["update_anonymize_checkbox"] = update_anonymize_checkbox
 
 local function send_remove_request(player, value, id)
     -- `player` is the color string of the requester when called from UI
@@ -944,6 +982,11 @@ local function send_remove_request(player, value, id)
         local pl = Player[requester_color]
         if pl and pl.steam_name and pl.steam_name ~= "" then requester_name = pl.steam_name end
     end)
+
+    -- Apply anonymization to requester name if checkbox is enabled
+    if last_anonymize_names then
+        requester_name = "Requester"
+    end
 
     local game_id = ""
     pcall(function() game_id = Global.getVar("game_id") or "" end)
@@ -994,7 +1037,7 @@ function SheetsSender.generateButtonXml()
     rectAlignment="UpperRight"
     anchorMin="1 1"
     anchorMax="1 1"
-    offsetXY="0 -200"
+    offsetXY="0 -150"
         width="105"
     height="60"
         childForceExpandHeight="false"

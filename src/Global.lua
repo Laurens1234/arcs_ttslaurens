@@ -1857,14 +1857,17 @@ end
 
 function onLoad(script_state)
   -- Restore persistent state saved by onSave (if present)
+  local loaded_state = nil
   if script_state and script_state ~= "" then
     local ok, state = pcall(function()
       return JSON.decode(script_state)
     end)
     if ok and state then
-      if state.game_id then
-        game_id = state.game_id
-      end
+      -- Don't immediately overwrite `game_id` here: onLoad can be invoked
+      -- during a script reload as well as when loading a saved game. We'll
+      -- apply the saved `game_id` only if the table is actually loading a
+      -- game in-progress (detected below by the reach board description).
+      loaded_state = state
       if state.initiative then
         initiative_player = state.initiative.player or initiative_player
         initiative_player_position = state.initiative.position or initiative_player_position
@@ -1880,7 +1883,9 @@ function onLoad(script_state)
     game_id = generate_game_id()
     LOG.INFO("Game ID: " .. game_id, {0.8, 0.8, 0.2})
   end
-  -- Store game_id in Global so other modules can access it
+  -- Store initial game_id in Global so other modules can access it.
+  -- If we later detect we're loading a saved 'in progress' game, we'll
+  -- override this with the saved ID below.
   Global.setVar("game_id", game_id)
     -- create a blank table to store the Wait.conditions in
     zoneWaits = {}
@@ -1900,6 +1905,12 @@ function onLoad(script_state)
 
     local reach_board = getObjectFromGUID(reach_board_GUID)
     if (reach_board.getDescription() == "in progress") then
+        -- If we have a saved state and it contains a game_id, use it now.
+        if loaded_state and loaded_state.game_id then
+          game_id = loaded_state.game_id
+          LOG.INFO("Restored Game ID: " .. game_id, {0.2, 0.8, 0.8})
+          Global.setVar("game_id", game_id)
+        end
         broadcastToAll("Loading game in progress")
 
         for _, v in ipairs({"Red", "White", "Yellow", "Teal", "Pink"}) do
