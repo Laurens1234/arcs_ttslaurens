@@ -9,7 +9,7 @@ available_colors = {"White", "Yellow", "Red", "Teal", "Pink"}
 ----------------------------------------------------
 -- [DEBUG] REMEMBER TO SET TO FALSE BEFORE RELEASE
 ----------------------------------------------------
-debug = true
+debug = false
 debug_player_count = 2
 ----------------------------------------------------
 
@@ -1889,6 +1889,9 @@ function onLoad(script_state)
   Global.setVar("game_id", game_id)
     -- create a blank table to store the Wait.conditions in
     zoneWaits = {}
+
+    -- Hide/disable helper snaps object at startup.
+    pcall(function() BaseGame.hide_and_disable_5p_snaps() end)
 
     Initiative.add_menu()
 

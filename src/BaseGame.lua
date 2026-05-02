@@ -363,6 +363,18 @@ function shift_ambition_markers() --5p
 end
 
 -- Move/scale action deck and related zones for 5-player layout
+function BaseGame.hide_and_disable_5p_snaps()
+    local snaps_obj = getObjectFromGUID(snaps_5p_GUID)
+    if not snaps_obj then
+        return
+    end
+
+    -- Keep helper snaps hidden and non-interactable for players.
+    snaps_obj.setInvisibleTo({"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"})
+    snaps_obj.setLock(true)
+    snaps_obj.interactable = false
+end
+
 function BaseGame.adjust_action_deck_for_5p()
     pcall(function()
         local target = {-12.14, 1.08, 8.52}
@@ -413,6 +425,7 @@ function BaseGame.adjust_action_deck_for_5p()
             elseif snaps_obj.setPosition then
                 snaps_obj.setPosition(snaps_target)
             end
+            BaseGame.hide_and_disable_5p_snaps()
         end
     end)
 end
