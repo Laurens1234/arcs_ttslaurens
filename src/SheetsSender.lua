@@ -1,7 +1,7 @@
 -- Simple Sheets sender for testing
 -- This module exposes a global UI callback `send_scores_to_sheet_ui`
 
-local WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRgkc6tWJ09oirhSNawJFQ9sxcYtJOV14ryuQVWsLk0llN86Fo2xq3XkI1y_ZWsdn25A/exec"
+local WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwl4ziuGruDElFuPu9lZw4VNALsXW25wHdzHENO32iCStt_tQa25dl0FE7qJpnIHd3alQ/exec"
 
 local SheetsSender = {}
 -- last computed preview rows (table form) so Send Now posts the exact preview
@@ -1028,9 +1028,9 @@ local function send_remove_request(player, value, id)
     local payload = {
         action = "remove_request",
         game_id = game_id,
+        notes = last_notes or "",
         requester = requester_name,
         requester_color = requester_color,
-        notes = last_notes or "",
         timestamp = os.time()
     }
     local body_json = JSON.encode(payload)

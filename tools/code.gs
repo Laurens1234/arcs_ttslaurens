@@ -60,6 +60,18 @@ function doPost(e) {
       var requester_color = payload.requester_color || '';
       var note = payload.notes || '';
       var req_ts = payload.timestamp || ts;
+      // Ensure timestamp is in milliseconds for JavaScript Date constructor.
+      var req_ts_ms = req_ts;
+      try {
+        if (typeof req_ts === 'number') {
+          if (req_ts < 1e12) req_ts_ms = req_ts * 1000; // seconds -> ms
+        } else if (typeof req_ts === 'string' && /^\d+$/.test(req_ts)) {
+          var n = parseInt(req_ts, 10);
+          req_ts_ms = (n < 1e12) ? n * 1000 : n;
+        }
+      } catch (e) {
+        req_ts_ms = req_ts;
+      }
 
       // We'll mark matching rows (column 2 == game_id) in column 18 with a flag
       var targetCol = 18;
@@ -67,8 +79,8 @@ function doPost(e) {
       for (var i = 0; i < data.length; i++) {
         try {
           var rowGameId = data[i][1]; // zero-based: [0]=ts, [1]=game_id
-          if (String(rowGameId) === String(gameId) && String(gameId) !== '') {
-            sheet.getRange(i + 1, targetCol).setValue('REMOVE_REQUESTED by ' + requester + ' (' + requester_color + ') at ' + new Date(req_ts));
+            if (String(rowGameId) === String(gameId) && String(gameId) !== '') {
+            sheet.getRange(i + 1, targetCol).setValue('REMOVE_REQUESTED by ' + requester + ' (' + requester_color + ') at ' + new Date(req_ts_ms));
           }
         } catch (err) {
           // ignore row errors
@@ -76,7 +88,8 @@ function doPost(e) {
       }
 
       // Also append a compact log entry to the main sheet for traceability
-      sheet.appendRow([ts, gameId, 'REMOVE_REQUEST', requester, requester_color, note, JSON.stringify(payload)]);
+      // Order: notes, requester, requester_color
+      sheet.appendRow([ts, gameId, 'REMOVE_REQUEST', note, requester, requester_color, JSON.stringify(payload)]);
       return ContentService.createTextOutput('OK').setMimeType(ContentService.MimeType.TEXT);
     }
 

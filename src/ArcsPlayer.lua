@@ -361,8 +361,19 @@ function ArcsPlayer:is_power_negative()
 end
 
 function ArcsPlayer:objective_score(objective_marker)
+    -- If the objective marker is missing or hidden to players, treat as 0
+    if not objective_marker then return 0 end
+    local ok, invisible_to = pcall(function()
+        if objective_marker.getInvisibleTo then return objective_marker.getInvisibleTo() end
+        return nil
+    end)
+    if ok and invisible_to and type(invisible_to) == "table" and next(invisible_to) ~= nil then
+        return 0
+    end
+
     -- Calculate objective score from marker position (same pattern as power)
-    local objective_pos_x = objective_marker and objective_marker.getPosition().x or 0
+    local objective_pos_x = 0
+    pcall(function() objective_pos_x = objective_marker.getPosition().x end)
     local base_objective = math.floor((objective_pos_x + 13.26) / 0.655)
     if base_objective < 0 then base_objective = 0 end
     return base_objective
