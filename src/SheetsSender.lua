@@ -764,8 +764,12 @@ end
 local function update_anonymize_checkbox(player, value, id)
     -- Debug: log what we actually received
    -- broadcastToAll("Sheets: update_anonymize_checkbox called with value=" .. tostring(value) .. " (type=" .. type(value) .. ")", {1, 1, 0})
-    
-    -- Handle various Toggle value formats
+    -- Ignore the initial UI setup call (player is empty when UI is first set)
+    if not player or tostring(player) == "" then
+        return
+    end
+
+    -- Handle various Toggle value formats coming from an actual user action
     if value == true or value == "true" or value == "True" or value == 1 or value == "1" then
         last_anonymize_names = true
         broadcastToAll("Sheets: anonymize names = TRUE", {0.2, 0.8, 0.2})
@@ -976,12 +980,42 @@ _G["update_anonymize_checkbox"] = update_anonymize_checkbox
 
 local function send_remove_request(player, value, id)
     -- `player` is the color string of the requester when called from UI
-    local requester_color = tostring(player or "")
-    local requester_name = requester_color
-    pcall(function()
-        local pl = Player[requester_color]
-        if pl and pl.steam_name and pl.steam_name ~= "" then requester_name = pl.steam_name end
-    end)
+    local requester_color = ""
+    local requester_name = ""
+    local pt = type(player)
+    -- `player` may be a color string, a table, or a Player userdata object
+    if pt == "string" then
+        requester_color = tostring(player)
+    elseif pt == "table" or pt == "userdata" then
+        -- try to read `.color` and `.steam_name` safely
+        pcall(function()
+            if player.color then requester_color = tostring(player.color) end
+        end)
+        pcall(function()
+            if player.steam_name and player.steam_name ~= "" then requester_name = player.steam_name end
+        end)
+        -- some userdata may offer getColor()
+        if requester_color == "" then
+            pcall(function()
+                if player.getColor then requester_color = tostring(player.getColor()) end
+            end)
+        end
+    else
+        requester_color = tostring(player or "")
+    end
+
+    -- fallback: try Player[color] lookup for steam_name
+    if (not requester_name or requester_name == "") and requester_color and requester_color ~= "" then
+        pcall(function()
+            local pl = Player[requester_color]
+            if pl and pl.steam_name and pl.steam_name ~= "" then requester_name = pl.steam_name end
+        end)
+    end
+
+    -- final fallback to something readable
+    if not requester_name or requester_name == "" then
+        if requester_color and requester_color ~= "" then requester_name = requester_color else requester_name = tostring(player or "") end
+    end
 
     -- Apply anonymization to requester name if checkbox is enabled
     if last_anonymize_names then
