@@ -48,7 +48,19 @@ local setupTableImageOptions = {
         name = "Beyond",
         diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/Beyond_1.png"
     },
-    
+}
+
+local setupBackgroundOptions = {
+    {
+        name = "Sky Field",
+        kind = "builtin",
+        value = "Sky_Field"
+    },
+    {
+        name = "Custom Sky",
+        kind = "custom",
+        value = "https://steamusercontent-a.akamaihd.net/ugc/2128570108363703240/7C119AE30B36149F36C42DFD03F43566BD5E18EC/"
+    }
 }
 
 local optionsText_params = {
@@ -372,6 +384,22 @@ local setupTableImage_params = {
     label = "Table Image:\nDefault",
     tooltip = "Choose the table surface",
     position = {-2.56, 0.5, 1.18},
+    width = BUTTON_WIDTH,
+    height = BUTTON_HEIGHT,
+    font_size = BUTTON_FONT_SIZE,
+    scale = BUTTON_SCALE,
+    color = BLACK,
+    font_color = GOLD,
+    hover_color = PURPLE
+}
+
+local setupBackground_params = {
+    index = 31,
+    click_function = "cycle_setup_background",
+    function_owner = self,
+    label = "Background:\nSky Field",
+    tooltip = "Choose the sky/background image",
+    position = {-2.56, 0.5, 0.59},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
     font_size = BUTTON_FONT_SIZE,
@@ -715,6 +743,8 @@ function onload()
     self.createButton(setupTableBrightnessDec_params)
     self.createButton(setupTableBrightnessDisplay_params)
     self.createButton(setupTableBrightnessInc_params)
+    self.createButton(setupBackground_params)
+
     -- must add buttons in the order of the actual indices !!!!!!!!!! lowest in here must have highest index
 
     -- Initialize numeric display labels from globals (resolve default if nil)
@@ -776,6 +806,22 @@ function onload()
         local b = Global.getVar("setup_table_brightness") or 1.0
         Global.setVar("setup_table_brightness", b)
         self.editButton({index=29, label = "Brightness:\n" .. string.format("%.2f", b)})
+    end
+    -- Initialize background display
+    do
+        local bg_name = "Sky Field"
+        pcall(function()
+            local custom_url = Backgrounds.getCustomURL()
+            if custom_url and custom_url ~= "" then
+                bg_name = "Custom Sky"
+            else
+                local current_bg = Backgrounds.getBackground()
+                if current_bg and current_bg ~= "" then
+                    bg_name = tostring(current_bg)
+                end
+            end
+        end)
+        self.editButton({index=31, label = "Background:\n" .. tostring(bg_name)})
     end
     -- Initialize initiative choice display
     do
@@ -1114,6 +1160,40 @@ function setup_table_brightness_inc(obj, color, alt_click)
     change_setup_table_brightness(0.05)
 end
 
+local function apply_setup_background(option)
+    if not option then
+        return false
+    end
+
+    local ok = false
+    if option.kind == "custom" then
+        ok = pcall(function()
+            Backgrounds.setCustomURL(option.value)
+        end)
+    else
+        ok = pcall(function()
+            Backgrounds.setBackground(option.value)
+        end)
+    end
+
+    if ok then
+        Global.setVar("setup_background_index", option.kind == "custom" and 1 or 0)
+        self.editButton({index=31, label = "Background:\n" .. tostring(option.name or option.value or "Sky Field")})
+        return true
+    end
+
+    broadcastToAll("Could not update background image.", {r=1, g=0, b=0})
+    return false
+end
+
+function cycle_setup_background(obj, color, alt_click)
+    local current = Global.getVar("setup_background_index") or 0
+    local next_index = (current + 1) % #setupBackgroundOptions
+    if apply_setup_background(setupBackgroundOptions[next_index + 1]) then
+        Global.setVar("setup_background_index", next_index)
+    end
+end
+
 function cycle_setup_table_image(obj, color, alt_click)
     local current = get_setup_table_image_index()
     local next_index = (current + 1) % #setupTableImageOptions
@@ -1287,7 +1367,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 30 do
+    for i = 0, 31 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)
