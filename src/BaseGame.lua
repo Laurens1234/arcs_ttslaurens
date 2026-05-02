@@ -1425,8 +1425,6 @@ function BaseGame.dealLeaders(player_count)
                 leader_deck.putObject(custom_decks[i])
             end
             leader_deck = target
-            broadcastToAll("Using custom leader deck(s): " .. table.concat(custom_names, ", "))
-        else
             -- Merge selected custom decks into the base fate deck
             for i, d in ipairs(custom_decks) do
                 leader_deck.putObject(d)
