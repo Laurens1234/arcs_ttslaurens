@@ -991,6 +991,16 @@ local function get_setup_table_image_index()
     return index
 end
 
+local function set_setup_table_noninteractable()
+    local table_obj = get_setup_table_object()
+    if not table_obj then
+        return
+    end
+
+    table_obj.setLock(true)
+    table_obj.interactable = false
+end
+
 local function apply_setup_table_image(index)
     local table_obj = get_setup_table_object()
     if not table_obj then
@@ -1008,6 +1018,9 @@ local function apply_setup_table_image(index)
     custom.diffuse = option.diffuse
     table_obj.setCustomObject(custom)
     table_obj.reload()
+    Wait.frames(function()
+        set_setup_table_noninteractable()
+    end, 1)
     return true
 end
 

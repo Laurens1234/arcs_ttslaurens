@@ -729,7 +729,7 @@ local function generate_preview_xml(active)
                 <Text text="You may submit these results at the end of the game or at the end of each Act." fontSize="13" color="#cfcfcf" />
                 %s
                 <HorizontalLayout spacing="8" childForceExpandWidth="false">
-                    <Button text="Send Now" onClick="send_preview_to_sheet_ui" color="#2e8b57" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="16" />
+                    <Button text="Send Result" onClick="send_preview_to_sheet_ui" color="#2e8b57" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="16" />
                     <Button text="Close" onClick="loadCameraTimerMenu" color="#888888" textColor="white" width="80" height="36" preferredWidth="80" preferredHeight="36" fontSize="16" />
                     <Text text="Notes:" color="#dcdcdc" fontSize="14" preferredWidth="60" />
                     <InputField id="sheetsNotesInput" text="" characterLimit="500" contentType="TextArea" placeholder="Add notes here..." preferredWidth="400" preferredHeight="18" onValueChanged="update_notes_field" />
