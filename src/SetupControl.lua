@@ -25,8 +25,8 @@ local setupTableImageOptions = {
         diffuse = "https://steamusercontent-a.akamaihd.net/ugc/15297536227112862/B09A1DE0302BFED6AFF653116F56B110B73F024B/"
     },
     {
-        name = "Beyond the Reach",
-        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs-arsenal/refs/heads/main/background_beyond.png"
+        name = "Planets",
+        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/combined.png"
     }
 }
 

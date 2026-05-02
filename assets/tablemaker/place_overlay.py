@@ -174,7 +174,7 @@ def place_planets(base_path, planets_dir, out_path, count=None, min_px=None, max
       ow, oh = img.size
       target_h = max(1, int(oh * (target_w / ow)))
       planet = img.resize((target_w, target_h), Image.LANCZOS)
-
+      planet = planet.rotate(180, expand=True)
       max_px = px_range[1] - planet.width
       min_px_allowed = px_range[0]
       max_py = py_range[1] - planet.height
@@ -342,60 +342,65 @@ def place_planets(base_path, planets_dir, out_path, count=None, min_px=None, max
 
 
 def main():
-    default_base = Path(__file__).parent / "B09A1DE0302BFED6AFF653116F56B110B73F024B_arcs_custom_table_diffuse.png"
-    default_overlay = Path(__file__).parent / "background_beyond.png"
-    default_out = Path(__file__).parent / "combined.png"
+  default_base = Path(__file__).parent / "B09A1DE0302BFED6AFF653116F56B110B73F024B_arcs_custom_table_diffuse.png"
+  default_overlay = Path(__file__).parent / "background_beyond.png"
+  default_out = Path(__file__).parent / "combined.png"
 
-    p = argparse.ArgumentParser(description="Place overlay near middle-left of base image")
-    p.add_argument("--base", required=False)
-    p.add_argument("--overlay", required=False)
-    p.add_argument("--out", required=False)
-    p.add_argument("--scale", type=float, default=0.30)
-    p.add_argument("--x-percent", type=float, default=0.15)
-    p.add_argument("--pos-x", type=int, default=None)
-    p.add_argument("--pos-y", type=int, default=None)
-    p.add_argument("--overlay-width", type=int, default=None)
-    p.add_argument("--max-right", type=int, default=None)
-    p.add_argument("--max-top", type=int, default=None)
-    p.add_argument("--batch", type=int, default=0)
-    p.add_argument("--out-pattern", type=str, default=None)
-    p.add_argument("--seed", type=int, default=None)
+  p = argparse.ArgumentParser(description="Place overlay near middle-left of base image")
+  p.add_argument("--base", required=False)
+  p.add_argument("--overlay", required=False)
+  p.add_argument("--out", required=False)
+  p.add_argument("--scale", type=float, default=0.30)
+  p.add_argument("--x-percent", type=float, default=0.15)
+  p.add_argument("--pos-x", type=int, default=None)
+  p.add_argument("--pos-y", type=int, default=None)
+  p.add_argument("--overlay-width", type=int, default=None)
+  p.add_argument("--max-right", type=int, default=None)
+  p.add_argument("--max-top", type=int, default=None)
+  p.add_argument("--batch", type=int, default=0)
+  p.add_argument("--out-pattern", type=str, default=None)
+  p.add_argument("--seed", type=int, default=None)
 
-    args = p.parse_args()
+  args = p.parse_args()
 
-    # default "no CLI args" behavior
-    if len(sys.argv) == 1:
-        planets_dir = Path(__file__).parent / "background planets"
-        place_planets(str(default_base), str(planets_dir), str(default_out))
-        return
+  # default "no CLI args" behavior
+  if len(sys.argv) == 1:
+    planets_dir = Path(__file__).parent / "background planets"
+    place_planets(str(default_base), str(planets_dir), str(default_out))
+    return
 
-    base = args.base or str(default_base)
-    overlay = args.overlay or str(default_overlay)
-    out = args.out or str(default_out)
+  base = args.base or str(default_base)
+  overlay = args.overlay or str(default_overlay)
+  out = args.out or str(default_out)
 
-    # Batch mode: generate multiple numbered images
-    if args.batch and args.batch > 0:
-        pattern = args.out_pattern if args.out_pattern else None
-        for i in range(1, args.batch + 1):
-            out_path = None
-        if pattern:
-            try:
-                out_path = pattern.format(i=i)
-            except Exception:
-                out_path = pattern.replace("{i}", str(i))
-        else:
-            # default numbered filename
-            out_path = str(Path(out).with_name(f"{Path(out).stem}_{i}{Path(out).suffix}"))
+  # Batch mode: generate multiple numbered images
+  if args.batch and args.batch > 0:
+      pattern = args.out_pattern if args.out_pattern else None
 
-        # use seed for reproducibility if provided
-        seed_val = args.seed + i if args.seed is not None else None
-        # call planet placement (default behavior)
-        place_planets(base, Path(__file__).parent / "background planets", out_path, seed=seed_val)
-        print(f"Generated {args.batch} images using pattern {pattern or out}")
-        return
+      for i in range(1, args.batch + 1):
+          if pattern:
+              try:
+                  out_path = pattern.format(i=i)
+              except Exception:
+                  out_path = pattern.replace("{i}", str(i))
+          else:
+              out_path = str(Path(out).with_name(f"{Path(out).stem}_{i}{Path(out).suffix}"))
 
-    # single run
-    compose(base, overlay, out, scale=args.scale, x_percent=args.x_percent, pos_x=args.pos_x, pos_y=args.pos_y, overlay_width=args.overlay_width, max_right=args.max_right, max_top=args.max_top)
+          # use seed for reproducibility if provided
+          seed_val = args.seed + i if args.seed is not None else None
+
+          place_planets(
+              base,
+              Path(__file__).parent / "background planets",
+              out_path,
+              seed=seed_val
+          )
+
+      print(f"Generated {args.batch} images using pattern {pattern or out}")
+      return
+
+  # single run
+  compose(base, overlay, out, scale=args.scale, x_percent=args.x_percent, pos_x=args.pos_x, pos_y=args.pos_y, overlay_width=args.overlay_width, max_right=args.max_right, max_top=args.max_top)
 
 
 if __name__ == "__main__":
