@@ -48,10 +48,6 @@ local setupTableImageOptions = {
         name = "Beyond",
         diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/Beyond_1.png"
     },
-    {
-        name = "Wood",
-        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/brown-wood-textured-background-with-design-space.jpg.png"
-    },
     
 }
 
@@ -374,7 +370,7 @@ local setupTableImage_params = {
     click_function = "cycle_setup_table_image",
     function_owner = self,
     label = "Table Image:\nDefault",
-    tooltip = "Cycle the setup table image between the available diffuse URLs",
+    tooltip = "Choose the table surface",
     position = {-2.56, 0.5, 1.18},
     width = BUTTON_WIDTH,
     height = BUTTON_HEIGHT,
@@ -382,6 +378,51 @@ local setupTableImage_params = {
     scale = BUTTON_SCALE,
     color = BLACK,
     font_color = GOLD,
+    hover_color = PURPLE
+}
+
+local setupTableBrightnessDec_params = {
+    index = 28,
+    click_function = "setup_table_brightness_dec",
+    function_owner = self,
+    label = "-",
+    tooltip = "Decrease setup table brightness",
+    position = {-2.87, 0.5, 1.77},
+    width = 330,
+    height = 250,
+    font_size = 170,
+    scale = {0.3,0.3,0.3},
+    color = RED,
+    font_color = BLACK,
+    hover_color = PURPLE
+}
+local setupTableBrightnessDisplay_params = {
+    index = 29,
+    click_function = "doNothing",
+    function_owner = self,
+    label = "Brightness:\n1.00",
+    tooltip = "Current setup table brightness",
+    position = {-2.56, 0.5, 1.77},
+    width = 600,
+    height = 250,
+    font_size = 170,
+    scale = {0.3,0.3,0.3},
+    color = BLACK,
+    font_color = GOLD
+}
+local setupTableBrightnessInc_params = {
+    index = 30,
+    click_function = "setup_table_brightness_inc",
+    function_owner = self,
+    label = "+",
+    tooltip = "Increase setup table brightness",
+    position = {-2.25, 0.5, 1.77},
+    width = 330,
+    height = 250,
+    font_size = 170,
+    scale = {0.3,0.3,0.3},
+    color = GREEN,
+    font_color = BLACK,
     hover_color = PURPLE
 }
 local initiativeChoice_params = {
@@ -671,6 +712,9 @@ function onload()
     self.createButton(leader_lore_controls_header_params)
     self.createButton(setup_controls_header_params)
     self.createButton(setupTableImage_params)
+    self.createButton(setupTableBrightnessDec_params)
+    self.createButton(setupTableBrightnessDisplay_params)
+    self.createButton(setupTableBrightnessInc_params)
     -- must add buttons in the order of the actual indices !!!!!!!!!! lowest in here must have highest index
 
     -- Initialize numeric display labels from globals (resolve default if nil)
@@ -726,6 +770,12 @@ function onload()
         local table_image_index = Global.getVar("setup_table_image_index") or 0
         local option = setupTableImageOptions[table_image_index + 1] or setupTableImageOptions[1]
         self.editButton({index=27, label = "Table Image:\n" .. tostring(option.name or "Default")})
+    end
+    -- Initialize brightness (default 1.0) and display
+    do
+        local b = Global.getVar("setup_table_brightness") or 1.0
+        Global.setVar("setup_table_brightness", b)
+        self.editButton({index=29, label = "Brightness:\n" .. string.format("%.2f", b)})
     end
     -- Initialize initiative choice display
     do
@@ -1005,6 +1055,20 @@ local function set_setup_table_noninteractable()
     table_obj.interactable = false
 end
 
+local function apply_setup_table_tint(table_obj, option)
+    if not table_obj then
+        return
+    end
+    local base = (option and option.tint) or {r = 1, g = 1, b = 1}
+    local brightness = Global.getVar("setup_table_brightness") or 1.0
+    local final = {
+        r = math.min(1, (base.r or 1) * brightness),
+        g = math.min(1, (base.g or 1) * brightness),
+        b = math.min(1, (base.b or 1) * brightness)
+    }
+    table_obj.setColorTint(final)
+end
+
 local function apply_setup_table_image(index)
     local table_obj = get_setup_table_object()
     if not table_obj then
@@ -1021,11 +1085,33 @@ local function apply_setup_table_image(index)
     local option = setupTableImageOptions[index + 1] or setupTableImageOptions[1]
     custom.diffuse = option.diffuse
     table_obj.setCustomObject(custom)
+    apply_setup_table_tint(table_obj, option)
     table_obj.reload()
     Wait.frames(function()
         set_setup_table_noninteractable()
     end, 1)
     return true
+end
+
+local function change_setup_table_brightness(delta)
+    local cur = Global.getVar("setup_table_brightness") or 1.0
+    local next = math.max(0, math.min(1, cur + delta))
+    Global.setVar("setup_table_brightness", next)
+    -- update display
+    self.editButton({index=29, label = "Brightness:\n" .. string.format("%.2f", next)})
+    -- reapply tint for current table option
+    local idx = get_setup_table_image_index()
+    local option = setupTableImageOptions[idx + 1] or setupTableImageOptions[1]
+    local table_obj = get_setup_table_object()
+    apply_setup_table_tint(table_obj, option)
+end
+
+function setup_table_brightness_dec(obj, color, alt_click)
+    change_setup_table_brightness(-0.05)
+end
+
+function setup_table_brightness_inc(obj, color, alt_click)
+    change_setup_table_brightness(0.05)
 end
 
 function cycle_setup_table_image(obj, color, alt_click)
@@ -1201,7 +1287,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 27 do
+    for i = 0, 30 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)
