@@ -48,6 +48,10 @@ local setupTableImageOptions = {
         name = "Beyond",
         diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/Beyond_1.png"
     },
+    {
+        name = "Wood",
+        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/brown-wood-textured-background-with-design-space.jpg.png"
+    },
     
 }
 
