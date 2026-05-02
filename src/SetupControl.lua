@@ -26,7 +26,7 @@ local setupTableImageOptions = {
     },
     {
         name = "Planets",
-        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/combined.png"
+        diffuse = "https://raw.githubusercontent.com/Laurens1234/arcs_ttslaurens/refs/heads/main/assets/tablemaker/combined_1.png"
     }
 }
 

@@ -169,12 +169,11 @@ def place_planets(base_path, planets_dir, out_path, count=None, min_px=None, max
     attempts = 0
     while attempts < max_attempts:
       attempts += 1
-      img = Image.open(img_path).convert("RGBA")
+      img = Image.open(src).convert("RGBA").rotate(180, expand=True)
       target_w = random.randint(int(min_w), int(max_w))
       ow, oh = img.size
       target_h = max(1, int(oh * (target_w / ow)))
       planet = img.resize((target_w, target_h), Image.LANCZOS)
-      planet = planet.rotate(180, expand=True)
       max_px = px_range[1] - planet.width
       min_px_allowed = px_range[0]
       max_py = py_range[1] - planet.height
@@ -235,7 +234,7 @@ def place_planets(base_path, planets_dir, out_path, count=None, min_px=None, max
       src = random.choice(files)
       # pick a candidate width to try
       target_w = random.randint(int(min_px), int(max_px))
-      img = Image.open(src).convert("RGBA")
+      img = Image.open(src).convert("RGBA").rotate(180, expand=True)
       ow, oh = img.size
       target_h = max(1, int(oh * (target_w / ow)))
       # determine px/py ranges depending on side
@@ -261,7 +260,7 @@ def place_planets(base_path, planets_dir, out_path, count=None, min_px=None, max
   # Now place remaining planets randomly
   for i in range(count - len(placed)):
     src = random.choice(files)
-    img = Image.open(src).convert("RGBA")
+    img = Image.open(src).convert("RGBA").rotate(180, expand=True)
 
     # attempt to place non-overlapping if requested
     placed_ok = False
