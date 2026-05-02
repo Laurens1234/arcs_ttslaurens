@@ -1,7 +1,7 @@
 -- Simple Sheets sender for testing
 -- This module exposes a global UI callback `send_scores_to_sheet_ui`
 
-local WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwvilhnP9YCvgsZKH5Tx0WmugvjwYVEGQgLvNoj6v76SI0pDGUR1JObWBipYnv_5_0PhQ/exec"
+local WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRgkc6tWJ09oirhSNawJFQ9sxcYtJOV14ryuQVWsLk0llN86Fo2xq3XkI1y_ZWsdn25A/exec"
 
 local SheetsSender = {}
 -- last computed preview rows (table form) so Send Now posts the exact preview
@@ -720,16 +720,18 @@ local function generate_preview_xml(active)
 
     return string.format([[ 
     <Canvas>
-        <Panel id="sheetsPreviewPanel" rectAlignment="MiddleCenter" allowDragging="true" width="1280" height="800" color="#222222CC" childForceExpandWidth="false" childForceExpandHeight="false">
+        <Panel id="sheetsPreviewPanel" rectAlignment="MiddleCenter" allowDragging="true" width="1400" height="900" color="#222222CC" childForceExpandWidth="false" childForceExpandHeight="false">
             <VerticalLayout spacing="8" padding="10" childForceExpandHeight="false" childForceExpandWidth="false">
-                <Text text="Sheets Payload Preview - Game ID: %s" fontSize="22" color="white" />
+                <Text text="ARCS - Game Results Preview" fontSize="24" color="white" />
+                <Text text="Review the results below. Game ID: %s - View full data: https://laurens1234.github.io/arcs-arsenal/data" fontSize="14" color="#dcdcdc" />
+                <Text text="You may submit these results at the end of the game or at the end of each Act." fontSize="13" color="#cfcfcf" />
                 %s
                 <HorizontalLayout spacing="8" childForceExpandWidth="false">
                     <Button text="Send Now" onClick="send_preview_to_sheet_ui" color="#2e8b57" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="16" />
                     <Button text="Close" onClick="loadCameraTimerMenu" color="#888888" textColor="white" width="80" height="36" preferredWidth="80" preferredHeight="36" fontSize="16" />
                     <Text text="Notes:" color="#dcdcdc" fontSize="14" preferredWidth="60" />
                     <InputField id="sheetsNotesInput" text="" characterLimit="500" contentType="TextArea" placeholder="Add notes here..." preferredWidth="400" preferredHeight="18" onValueChanged="update_notes_field" />
-                    <Text text="Act:" color="#dcdcdc" fontSize="14" preferredWidth="40" />
+                    <Text text="Mode/Act:" color="#dcdcdc" fontSize="14" preferredWidth="40" />
                     <Dropdown id="sheetsActDropdown" onValueChanged="update_act_dropdown" preferredWidth="120" preferredHeight="28">
                         <Option value="basegame">basegame</Option>
                         <Option value="Lost Vaults">Lost Vaults</Option>
@@ -737,6 +739,8 @@ local function generate_preview_xml(active)
                         <Option value="Act II">Act II</Option>
                         <Option value="Act III">Act III</Option>
                     </Dropdown>
+                    <Panel preferredWidth="1" flexibleWidth="1" />
+                    <Button text="Request Remove &#10;Last Submission" onClick="send_remove_request_ui" color="#b03060" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="14" />
                 </HorizontalLayout>
             </VerticalLayout>
         </Panel>
@@ -787,6 +791,10 @@ local function open_preview(player, value, id)
         -- broadcastToAll("Sheets Preview players: " .. table.concat(resolved, ", "), {0.2,0.8,0.2})
     end
     local previewXml = generate_preview_xml(active)
+    -- Announce where collected game data/results can be viewed when opening preview
+    pcall(function()
+        broadcastToAll("All collected data / game results can be viewed here: https://laurens1234.github.io/arcs-arsenal/data")
+    end)
     UI.setXml(previewXml)
 end
 
@@ -928,34 +936,83 @@ _G["send_preview_to_sheet_ui"] = send_preview_to_sheet
 _G["update_notes_field"] = update_notes_field
 _G["update_act_dropdown"] = update_act_dropdown
 
+local function send_remove_request(player, value, id)
+    -- `player` is the color string of the requester when called from UI
+    local requester_color = tostring(player or "")
+    local requester_name = requester_color
+    pcall(function()
+        local pl = Player[requester_color]
+        if pl and pl.steam_name and pl.steam_name ~= "" then requester_name = pl.steam_name end
+    end)
+
+    local game_id = ""
+    pcall(function() game_id = Global.getVar("game_id") or "" end)
+
+    local payload = {
+        action = "remove_request",
+        game_id = game_id,
+        requester = requester_name,
+        requester_color = requester_color,
+        notes = last_notes or "",
+        timestamp = os.time()
+    }
+    local body_json = JSON.encode(payload)
+    local headers = { ["Content-Type"] = "application/json" }
+
+    broadcastToAll("Sheets: sending remove request for game " .. tostring(game_id) .. " from " .. tostring(requester_name), {1,0.6,0.6})
+
+    if not WebRequest or not WebRequest.custom then
+        broadcastToAll("Sheets: WebRequest API not available; cannot send remove request", {1,0,0})
+        return
+    end
+
+    local url_with_q = WEBHOOK_URL .. "?payload=" .. url_encode(body_json)
+    local ok, err = pcall(function()
+        WebRequest.custom(url_with_q, "POST", true, body_json, headers, function(response)
+            if response and response.is_error then
+                local text = (response and response.text) and response.text or tostring(response)
+                broadcastToAll("Sheets: remove request failed - " .. tostring(text), {1,0,0})
+            else
+                broadcastToAll("Sheets: remove request sent", {0.8, 0.9, 1})
+                if response and response.text then broadcastToAll("Sheets response: " .. tostring(response.text), {0.8,0.9,1}) end
+            end
+        end)
+    end)
+    if not ok then broadcastToAll("Sheets: WebRequest.custom error sending remove request: " .. tostring(err), {1,0,0}) end
+    -- close preview after request
+    pcall(function() loadCameraTimerMenu(true) end)
+end
+
+_G["send_remove_request_ui"] = send_remove_request
+
 function SheetsSender.generateButtonXml()
     return [[
-    <VerticalLayout
-        id="sheetsSenderLayout"
-        allowDragging="true"
-        returnToOriginalPositionWhenReleased="false"
-        rectAlignment="UpperRight"
-        anchorMin="1 1"
-        anchorMax="1 1"
-        offsetXY="-120 -250"
-        width="160"
-        height="60"
+        <VerticalLayout
+    id="sheetsSenderLayout"
+    allowDragging="true"
+    returnToOriginalPositionWhenReleased="false"
+    rectAlignment="UpperRight"
+    anchorMin="1 1"
+    anchorMax="1 1"
+    offsetXY="0 -200"
+        width="105"
+    height="60"
         childForceExpandHeight="false"
         childForceExpandWidth="false"
         >
         <Button
             id="sheetsSendBtn"
             onClick="open_sheets_preview_ui"
-            text="Send Scores"
+            text="Submit Results"
             textColor="white"
             color="#2e8b57"
             tooltipBackgroundColor="#2e8b57"
             tooltipTextColor="Black"
-            width="160"
-            height="48"
-            preferredWidth="160"
-            preferredHeight="48"
-            fontSize="20"
+            width="95"
+            height="40"
+            preferredWidth="95"
+            preferredHeight="40"
+            fontSize="14"
             />
     </VerticalLayout>
     ]]

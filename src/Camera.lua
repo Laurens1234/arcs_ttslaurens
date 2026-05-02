@@ -133,8 +133,6 @@ function Camera.generateMenuXml(menuOpen, controlsXml, sheetsXml)
             <Button class="cameraControl" onClick="onCameraClick" />
         </Defaults>
 
-        %s
-
         <VerticalLayout
             id="cameraLayout"
             height="320"
@@ -169,7 +167,9 @@ function Camera.generateMenuXml(menuOpen, controlsXml, sheetsXml)
                 %s
             </VerticalLayout>
         </VerticalLayout>
-    ]], sheetsXml, tostring(menuOpen), controlsXml)
+
+        %s
+    ]], tostring(menuOpen), controlsXml, sheetsXml)
 end
 
 return Camera

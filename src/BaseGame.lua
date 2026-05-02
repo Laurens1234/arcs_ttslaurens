@@ -585,12 +585,26 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
                     pcall(function() target.putObject(custom_decks[i]) end)
                 end
                 leader_deck = target
-                broadcastToAll("Using custom leader deck(s): " .. table.concat(custom_names, ", "))
+                for i, name in ipairs(custom_names) do
+                    if name == "Laurens" then
+                        broadcastToAll("Including Celestial Leader Expansion by Laurens")
+                    elseif name == "PnP#3" then
+                        broadcastToAll("Including PnP#3 Leader Deck")
+                    else
+                        broadcastToAll("Including " .. name .. "'s custom leader deck")
+                    end
+                end
             else
                 -- Merge selected custom decks into the base fate deck
                 for i, d in ipairs(custom_decks) do
                     pcall(function() leader_deck.putObject(d) end)
-                    broadcastToAll("Including " .. custom_names[i] .. "'s custom leader deck")
+                    if custom_names[i] == "Laurens" then
+                        broadcastToAll("Including Celestial Leader Expansion by Laurens")
+                    elseif custom_names[i] == "PnP#3" then
+                        broadcastToAll("Including PnP#3 Leader Deck")
+                    else
+                        broadcastToAll("Including " .. custom_names[i] .. "'s leader deck")
+                    end
                 end
             end
         end
@@ -1416,7 +1430,13 @@ function BaseGame.dealLeaders(player_count)
             -- Merge selected custom decks into the base fate deck
             for i, d in ipairs(custom_decks) do
                 leader_deck.putObject(d)
-                broadcastToAll("Including " .. custom_names[i] .. "'s custom leader deck")
+                if custom_names[i] == "Laurens" then
+                    broadcastToAll("Including Celestial Leader Expansion by Laurens")
+                elseif custom_names[i] == "PnP#3" then
+                    broadcastToAll("Including PnP#3 Leader Deck")
+                else
+                    broadcastToAll("Including " .. custom_names[i] .. "'s custom leader deck")
+                end
             end
         end
     end

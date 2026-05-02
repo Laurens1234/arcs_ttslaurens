@@ -53,6 +53,33 @@ function doPost(e) {
     }
 
     // If payload contains players (SubmitGame format)
+    // If this is a remove request from a player, mark matching game rows in the main sheet
+    if (payload.action && String(payload.action) === 'remove_request') {
+      var gameId = payload.game_id || '';
+      var requester = payload.requester || '';
+      var requester_color = payload.requester_color || '';
+      var note = payload.notes || '';
+      var req_ts = payload.timestamp || ts;
+
+      // We'll mark matching rows (column 2 == game_id) in column 18 with a flag
+      var targetCol = 18;
+      var data = sheet.getDataRange().getValues();
+      for (var i = 0; i < data.length; i++) {
+        try {
+          var rowGameId = data[i][1]; // zero-based: [0]=ts, [1]=game_id
+          if (String(rowGameId) === String(gameId) && String(gameId) !== '') {
+            sheet.getRange(i + 1, targetCol).setValue('REMOVE_REQUESTED by ' + requester + ' (' + requester_color + ') at ' + new Date(req_ts));
+          }
+        } catch (err) {
+          // ignore row errors
+        }
+      }
+
+      // Also append a compact log entry to the main sheet for traceability
+      sheet.appendRow([ts, gameId, 'REMOVE_REQUEST', requester, requester_color, note, JSON.stringify(payload)]);
+      return ContentService.createTextOutput('OK').setMimeType(ContentService.MimeType.TEXT);
+    }
+
     if (payload.players && Array.isArray(payload.players)) {
       const notes = payload.notes || "";
       const game_id = payload.game_id || "";
