@@ -52,11 +52,6 @@ local setupTableImageOptions = {
 
 local setupBackgroundOptions = {
     {
-        name = "Sky Field",
-        kind = "builtin",
-        value = "Sky_Field"
-    },
-    {
         name = "Custom Sky",
         kind = "custom",
         value = "https://steamusercontent-a.akamaihd.net/ugc/2128570108363703240/7C119AE30B36149F36C42DFD03F43566BD5E18EC/"
@@ -743,7 +738,7 @@ function onload()
     self.createButton(setupTableBrightnessDec_params)
     self.createButton(setupTableBrightnessDisplay_params)
     self.createButton(setupTableBrightnessInc_params)
-    self.createButton(setupBackground_params)
+    -- self.createButton(setupBackground_params)
 
     -- must add buttons in the order of the actual indices !!!!!!!!!! lowest in here must have highest index
 
@@ -808,21 +803,21 @@ function onload()
         self.editButton({index=29, label = "Brightness:\n" .. string.format("%.2f", b)})
     end
     -- Initialize background display
-    do
-        local bg_name = "Sky Field"
-        pcall(function()
-            local custom_url = Backgrounds.getCustomURL()
-            if custom_url and custom_url ~= "" then
-                bg_name = "Custom Sky"
-            else
-                local current_bg = Backgrounds.getBackground()
-                if current_bg and current_bg ~= "" then
-                    bg_name = tostring(current_bg)
-                end
-            end
-        end)
-        self.editButton({index=31, label = "Background:\n" .. tostring(bg_name)})
-    end
+    -- do
+    --     local bg_name = "Sky Field"
+    --     pcall(function()
+    --         local custom_url = Backgrounds.getCustomURL()
+    --         if custom_url and custom_url ~= "" then
+    --             bg_name = "Custom Sky"
+    --         else
+    --             local current_bg = Backgrounds.getBackground()
+    --             if current_bg and current_bg ~= "" then
+    --                 bg_name = tostring(current_bg)
+    --             end
+    --         end
+    --     end)
+    --     self.editButton({index=31, label = "Background:\n" .. tostring(bg_name)})
+    -- end
     -- Initialize initiative choice display
     do
         local ic_index = Global.getVar("initiative_choice_index") or 0
@@ -1178,7 +1173,7 @@ local function apply_setup_background(option)
 
     if ok then
         Global.setVar("setup_background_index", option.kind == "custom" and 1 or 0)
-        self.editButton({index=31, label = "Background:\n" .. tostring(option.name or option.value or "Sky Field")})
+        -- self.editButton({index=31, label = "Background:\n" .. tostring(option.name or option.value or "Sky Field")})
         return true
     end
 
@@ -1367,7 +1362,7 @@ function leader_buttons()
         tooltip = ""
     }
 
-    for i = 0, 31 do
+    for i = 0, 30 do
         if i ~= 2 then  -- Skip the leader button
             empty_button.index = i
             self.editButton(empty_button)

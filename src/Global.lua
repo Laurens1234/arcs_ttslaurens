@@ -1742,7 +1742,7 @@ function setup_custom_game()
     end
 
     with_miniatures = Global.getVar("with_miniatures")
-    BaseGame.setup_or_destroy_miniatures(with_miniatures)
+    BaseGame.setup_or_destroy_miniatures(with_miniatures, active_players)
 
     local player_count = #active_players
     local p = {

@@ -102,7 +102,7 @@ function Campaign.setup(with_leaders, with_ll_expansion, with_miniatures)
         return false
     end
 
-    BaseGame.setup_or_destroy_miniatures(with_miniatures)
+    BaseGame.setup_or_destroy_miniatures(with_miniatures, active_players)
 
     -- determine initiative recipient (respect stored choice or random)
     local initiative = require("src/InitiativeMarker")

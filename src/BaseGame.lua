@@ -461,8 +461,6 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
         end)
     end
 
-    BaseGame.setup_or_destroy_miniatures(with_miniatures)
-
     -- B: determine initiative recipient (respect stored choice or random)
     local initiative = require("src/InitiativeMarker")
     local init_choice_color = Global.getVar("initiative_choice_color")
@@ -489,6 +487,8 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
     if (#active_players < 2 or #active_players > 5) then
         return false
     end
+
+    BaseGame.setup_or_destroy_miniatures(with_miniatures, active_players)
 
     -- Set up per-player boards/objects now that active_players order is final
     local active_player_colors = {}
@@ -1902,7 +1902,7 @@ function BaseGame.destroy_unused_miniature_supplies()
     end
 end
 
-function BaseGame.upgrade_to_miniatures()
+function BaseGame.upgrade_to_miniatures(active_players)
     local function replace_piece_bag(regular_guid, mini_guid, update_global)
         local regular_bag = getObjectFromGUID(regular_guid)
         if not regular_bag then return end
@@ -1921,12 +1921,15 @@ function BaseGame.upgrade_to_miniatures()
     end
 
     local player_pieces_guids = Global.getVar("player_pieces_GUIDs")
-    for _, player in ipairs(Global.getVar("active_players")) do
+    local players = active_players or Global.getVar("active_players") or {}
+    for _, player in ipairs(players) do
         local pieces = player_pieces_guids[player.color]
-        replace_piece_bag(pieces["ships"], pieces["mini_ships"])
-        replace_piece_bag(pieces["agents"], pieces["mini_agents"])
-        pieces["ships"] = pieces["mini_ships"]
-        pieces["agents"] = pieces["mini_agents"]
+        if pieces then
+            replace_piece_bag(pieces["ships"], pieces["mini_ships"])
+            replace_piece_bag(pieces["agents"], pieces["mini_agents"])
+            pieces["ships"] = pieces["mini_ships"]
+            pieces["agents"] = pieces["mini_agents"]
+        end
     end
 
     replace_piece_bag(
@@ -1941,10 +1944,10 @@ function BaseGame.upgrade_to_miniatures()
     )
 end
 
-function BaseGame.setup_or_destroy_miniatures(with_miniatures)
+function BaseGame.setup_or_destroy_miniatures(with_miniatures, active_players)
     BaseGame.destroy_grey_setup_menu_objects()
     if with_miniatures then
-        BaseGame.upgrade_to_miniatures()
+        BaseGame.upgrade_to_miniatures(active_players)
     else
         BaseGame.destroy_unused_miniature_supplies()
     end
