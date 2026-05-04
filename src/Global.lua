@@ -4492,8 +4492,16 @@ _G.place_veil_on_loom = function(loom_card)
   local ok, name = pcall(function() return loom_card.getName() end)
   if not ok or not name or name ~= "The Loom" then return end
 
+  -- Check if veils have already been placed on this Loom card
+  local already_placed = false
+  pcall(function() already_placed = loom_card.getVar("veils_placed_on_loom") or false end)
+  if already_placed then return end
+
   local okpos, pos = pcall(function() return loom_card.getPosition() end)
   if not okpos or not pos then return end
+
+  -- Mark immediately that we're processing this Loom card to prevent duplicate runs
+  pcall(function() loom_card.setVar("veils_placed_on_loom", true) end)
 
   local candidates = {}
   local all = getAllObjects()
