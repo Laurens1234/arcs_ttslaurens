@@ -353,6 +353,29 @@ function ambitionMarkers:undo()
     local undo_pos =
         reach_board.positionToWorld(last_declared_marker.column_pos)
     undo_pos.y = undo_pos.y + 0.3
+    -- If this spot is occupied, place the returned marker to the left by 1.33
+    local function positions_too_close(p1, p2)
+        local dx = math.abs(p1.x - p2.x)
+        local dz = math.abs(p1.z - p2.z)
+        return dx < 0.45 and dz < 0.45
+    end
+
+    local occupied = false
+    -- gather existing ambition marker world positions
+    for _, m in ipairs(markers) do
+        if m and m.object and m.object.getPosition then
+            local ok, p = pcall(function() return m.object.getPosition() end)
+            if ok and p and positions_too_close(undo_pos, p) then
+                occupied = true
+                break
+            end
+        end
+    end
+
+    if occupied then
+        undo_pos.x = undo_pos.x - 1.33
+    end
+
     last_declared_marker.object.setPositionSmooth(undo_pos)
 
     -- move zero marker back
