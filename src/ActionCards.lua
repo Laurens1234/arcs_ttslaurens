@@ -411,7 +411,7 @@ function ActionCards.get_surpassing_card()
                 LOG.DEBUG("get_info returned nil for card with guid " .. tostring(v.guid))
             end
             if card then
-                if lead.number == 0 then
+                if lead.type and string.find(lead.type, "Mandate") then
                     -- Mandate lead: numeric cards outrank mandates; highest numeric wins.
                     -- Mandates only count if no numeric cards are played.
                     LOG.DEBUG("Mandate lead: comparing card.number=" .. tostring(card.number) .. " to max_surpassing_number=" .. tostring(max_surpassing_number))
@@ -422,7 +422,7 @@ function ActionCards.get_surpassing_card()
                             surpassing_card = card
                             numeric_surpass_found = true
                         end
-                    elseif card.number == 0 and not numeric_surpass_found and not found_mandate_surpass then
+                    elseif card.type and string.find(card.type, "Mandate") and not numeric_surpass_found and not found_mandate_surpass then
                         -- No numeric surpass yet: first non-lead Mandate card found wins among mandates
                         LOG.DEBUG("Mandate tie-break: first non-lead Mandate card found, setting surpassing_card to " .. tostring(card.type) .. " (guid=" .. tostring(card.guid) .. ")")
                         surpassing_card = card
