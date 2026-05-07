@@ -22,9 +22,6 @@
     .overlay-left .player { flex-direction: row-reverse; padding: 8px 0 0 0; }
     .overlay-left .color { margin-right: 0; margin-left: 8px; }
     .overlay-left .hand { margin-left: 0; }
-    /* Fade-in animation for cards on update */
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .card-fade-in { animation: fadeIn 0.3s ease-in; }
   </style>
 </head>
 <body>
@@ -146,20 +143,7 @@
       container.innerHTML = '';
       if(!payload || !payload.players) return;
       const sortedPlayers = sortByTurnOrder(payload.players, payload.turn_order);
-      
-      // Track previous hands to animate only new/changed cards
-      let prevHands = render.prevHands || {};
-      
       sortedPlayers.forEach(p=>{
-        const playerKey = p.color || p.steam_name;
-        const prevHand = prevHands[playerKey] || [];
-        const currHand = p.hand || [];
-        const hideCards = payload.hide_cards || false;
-        
-        // Check if hand changed (different count or content)
-        const handChanged = hideCards !== render.lastHideCards || currHand.length !== prevHand.length || 
-                           (currHand.length > 0 && currHand.join('|') !== prevHand.join('|'));
-        
         const el = document.createElement('div'); el.className='player';
         const c = document.createElement('div'); c.className='color'; c.style.background = colorToCss(p.color || '#666');
         // set player row background to solid color
@@ -171,29 +155,26 @@
             const count = p.hand_size || p.hand.length;
             for(let i = 0; i < count; i++){
               const blank = document.createElement('div');
-              blank.className = handChanged ? 'blank-card card-fade-in' : 'blank-card';
+              blank.className = 'blank-card';
               h.appendChild(blank);
             }
           } else {
             p.hand.forEach((cardName, idx)=>{
-              // Only animate if hand changed or card is at a new index
-              const shouldAnimate = handChanged || idx >= prevHand.length || prevHand[idx] !== cardName;
-              
               // If card name/description is missing, render a blank placeholder (no text)
               if(!cardName || String(cardName).trim().length === 0){
                 const blank = document.createElement('div');
-                blank.className = shouldAnimate ? 'blank-card card-fade-in' : 'blank-card';
+                blank.className = 'blank-card';
                 h.appendChild(blank);
                 return;
               }
               const img = document.createElement('img');
-              img.className = shouldAnimate ? 'card-fade-in' : '';
+              img.className = '';
               img.alt = cardName;
               // try multiple common extensions before falling back to blank placeholder
               const exts = ['.png', '.jpg', '.jpeg', '.webp'];
               let tried = 0;
               function tryExt(){
-                if(tried>=exts.length){ const blank = document.createElement('div'); blank.className = shouldAnimate ? 'blank-card card-fade-in' : 'blank-card'; img.replaceWith(blank); return; }
+                if(tried>=exts.length){ const blank = document.createElement('div'); blank.className = 'blank-card'; img.replaceWith(blank); return; }
                 img.src = '/card_images/' + encodeURIComponent(cardName) + exts[tried];
                 tried++;
               }
@@ -208,14 +189,7 @@
         }
         el.appendChild(c); el.appendChild(h);
         container.appendChild(el);
-        
-        // Update previous hand for next render
-        prevHands[playerKey] = Array.from(currHand);
       });
-      
-      // Store state for next render
-      render.prevHands = prevHands;
-      render.lastHideCards = payload.hide_cards;
     }
 
     // SSE connection

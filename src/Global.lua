@@ -451,6 +451,12 @@ function onPlayerTurn(player, previous_player)
 
 end
 
+local function is_overlay_hand_card(obj)
+  if not obj then return false end
+  local tag = obj.tag or obj.type
+  return tag == "Card" or tag == "Deck"
+end
+
 function onObjectEnterZone(zone, object)
     Counters.update(zone)
 
@@ -469,6 +475,12 @@ function onObjectEnterZone(zone, object)
         seized_initiative_GUID) and zone_name == "initiative_zone") then
         local zone_color = zone.getDescription()
         Global.setVar("initiative_player", zone_color)
+    end
+
+    if zone_name == "hand" and overlay_sending_enabled and is_overlay_hand_card(object) then
+      if _G["send_overlay_update_ui"] then
+        _G["send_overlay_update_ui"]()
+      end
     end
 end
 
@@ -502,6 +514,12 @@ function onObjectLeaveZone(zone, object)
     -- check for and remove the Wait.condition if it exists
     if zoneWaits[wait_id] then
         Wait.stop(zoneWaits[wait_id])
+    end
+
+    if zone_name == "hand" and overlay_sending_enabled and is_overlay_hand_card(object) then
+      if _G["send_overlay_update_ui"] then
+        _G["send_overlay_update_ui"]()
+      end
     end
 end
 

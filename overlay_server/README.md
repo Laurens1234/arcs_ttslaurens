@@ -61,3 +61,82 @@ Each payload contains a `players` array with:
 - `hand_size`
 
 The TTS sender also prefers card descriptions when a card's name is generic, so cards like `Action Card` can render as their actual printed description.
+
+## How It Works
+
+The overlay displays the active player's hand in a compact, visual format:
+
+- **Player cards**: Each player gets a row showing their hand as overlapping card images (only the top-left quarter of each card is visible, scaled up 3.2x)
+- **Color stripe**: A thin 10px colored stripe shows the player's color on the left or right side of the row
+- **Card stacking**: Cards overlap slightly so you can see how many are in hand at a glance
+- **Real-time updates**: The overlay updates whenever a card is played or drawn, or when a player's turn begins
+- **OBS-friendly**: Fixed positioning in the top-left corner with no fullscreen mode — perfect for streaming overlays
+
+## Chat Commands
+
+In the TTS table chat, use the following commands to control the overlay (type them all lowercase):
+
+### Start/Stop Sending
+
+| Command | Effect |
+|---------|--------|
+| `!overlay start` | Enable automatic sending — overlay updates each turn and when cards move |
+| `!overlay stop` | Disable automatic sending — overlay stops updating |
+| `!overlay once` | Send a single update immediately without changing the enabled state |
+| `!overlay status` | Show whether overlay sending is currently enabled or disabled |
+
+### Card Visibility
+
+| Command | Effect |
+|---------|--------|
+| `!overlay hidecards` | Blank out all card images and show placeholder boxes instead |
+| `!overlay showcards` | Show the actual card images again |
+| `!overlay togglecards` | Toggle between showing and hiding card faces |
+
+### Overlay Position
+
+| Command | Effect |
+|---------|--------|
+| `!overlay align left` or `!overlay left` | Position overlay on the left side (default) |
+| `!overlay align right` or `!overlay right` | Position overlay on the right side |
+
+### Help
+
+| Command | Effect |
+|---------|--------|
+| `!overlay help` | Display a list of all available commands in the chat |
+
+## When the Overlay Updates
+
+The overlay sends updates in the following situations:
+
+1. **On turn change** (if sending is enabled) — when a new player's turn begins
+2. **When cards enter the hand zone** — when a card is moved into a player's hand area
+3. **When cards leave the hand zone** — when a card is played or removed from hand
+4. **On chapter start** — reminds players that the overlay is on (green message)
+5. **On manual commands** — `!overlay once` or any card visibility/alignment change sends an immediate update
+
+## Payload Format
+
+The server receives JSON payloads with this structure:
+
+```json
+{
+  "source": "tts",
+  "timestamp": 1234567890,
+  "players": [
+    {
+      "steam_name": "PlayerName",
+      "color": "White",
+      "hand": ["Card Name 1", "Card Name 2"],
+      "hand_size": 2
+    }
+  ],
+  "turn_order": ["White", "Yellow", "Red", "Teal", "Pink"],
+  "align": "left",
+  "hide_cards": false
+}
+```
+
+The browser client uses `turn_order` to sort players by their position in the turn sequence.
+

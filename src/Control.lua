@@ -246,6 +246,11 @@ function start_chapter()
             "\n\n!!Could not determine initiative player!!\nPlease ensure initiative marker is near a player board.\n\n"
         )
     end
+
+    -- Remind if overlay is on
+    if overlay_sending_enabled then
+        broadcastToAll("Reminder: Overlay is ON - player hands are being displayed", {0.2, 0.8, 0.2})
+    end
 end
 
 function end_round()

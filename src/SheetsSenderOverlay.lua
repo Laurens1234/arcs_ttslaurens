@@ -171,7 +171,7 @@ local function send_overlay_update(player, value, id)
             local text = (response and response.text) and response.text or tostring(response)
             broadcastToAll("Overlay send failed - " .. tostring(text), {1,0,0})
         else
-            broadcastToAll("Overlay: update sent", {0.2, 0.8, 0.2})
+           -- broadcastToAll("Overlay: update sent", {0.2, 0.8, 0.2})
         end
     end)
 end
