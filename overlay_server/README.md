@@ -15,6 +15,24 @@ npm start
 
 If you keep it inside the mod repository, just run the same commands from this folder.
 
+## Publishing Overlay-Only Updates From Monorepo
+
+If you maintain this folder inside the main Arcs mod repo and also want to publish updates to a standalone overlay repo, use git subtree.
+
+Add the standalone remote once (from the main repo root):
+
+```bash
+git remote add overlay-origin https://github.com/Laurens1234/arcs-tts-overlay-server.git
+```
+
+Push only this folder whenever you update the overlay:
+
+```bash
+git subtree push --prefix=overlay_server overlay-origin main
+```
+
+You can still push your main repo normally; this command only publishes the `overlay_server` folder to the standalone overlay repository.
+
 ## TTS Side
 
 Make sure `src/SheetsSenderOverlay.lua` points `LOCAL_OVERLAY_URL` at your local server, usually:
