@@ -222,7 +222,7 @@ function start_chapter()
     --------------------------------------------------------------------
     -- CARTEL CHECK (protected): if any player has a '* Cartel' card in
     -- their player area, detect matching resources in other players'
-    -- area zones, return them to supply, and notify players.
+    -- area zones and notify players with a reminder.
     --------------------------------------------------------------------
     do
         local ok_cartel, cartel_err = pcall(function()
@@ -258,10 +258,10 @@ function start_chapter()
                                         end
                                     end
                                 else
-                                    print("Warning: failed to getObjects() for area zone of ", colname)
+                                    broadcastToAll("Warning: failed to read Cartel area zone for " .. tostring(colname), {1, 0.5, 0})
                                 end
                             else
-                                print("Warning: area zone not found or invalid for ", colname, tostring(area_guid))
+                                broadcastToAll("Warning: Cartel area zone not found or invalid for " .. tostring(colname), {1, 0.5, 0})
                             end
                 end
             end
@@ -287,29 +287,18 @@ function start_chapter()
                                         end
                                     end
                                 else
-                                    print("Warning: failed to getObjects() for victim area zone ", victim_color)
+                                    broadcastToAll("Warning: failed to read victim Cartel area for " .. tostring(victim_color), {1, 0.5, 0})
                                 end
                                 
                                 if #found > 0 then
-                                    -- Return each found resource object to its configured supply
                                     for _, robj in ipairs(found) do
                                         local robj_guid = "?"
                                         local ok_guid, g = pcall(function() return robj.getGUID and robj.getGUID() end)
                                         if ok_guid and g then robj_guid = g end
                                         local ok_name, rname = pcall(function() return robj.getName and robj.getName() end)
-                                        print("Returning cartel resource found in ", victim_color, ": guid=", robj_guid, " name=", (ok_name and rname or "?"))
-                                        if robj and robj.getName then
-                                            local ok, err = pcall(function()
-                                                SupplyManager.returnObject(robj, nil, victim_color)
-                                            end)
-                                            if not ok then
-                                                print("Error returning cartel resource for ", victim_color, tostring(err), " guid=", robj_guid)
-                                            end
-                                        else
-                                            print("Skipping invalid object when returning cartel resource for ", victim_color, " guid=", robj_guid)
-                                        end
+                                        broadcastToAll("Cartel resource reminder detected in " .. tostring(victim_color) .. ": guid=" .. tostring(robj_guid) .. " name=" .. tostring(ok_name and rname or "?"), {1, 0.5, 0})
                                     end
-                                    table.insert(msgs, victim_color .. " had " .. tostring(#found) .. " " .. match_word .. "(s) in their player area. Returned to supply because of " .. owner_color .. "'s " .. cartel_name .. ".")
+                                    table.insert(msgs, victim_color .. " has " .. tostring(#found) .. " " .. match_word .. "(s) in their player area because of " .. owner_color .. "'s " .. cartel_name .. ". Please return them to supply.")
                                 end
                             end
                         end
@@ -318,16 +307,16 @@ function start_chapter()
             end
 
             if #msgs > 0 then
-                local full = "Cartel resources must be returned to supply:\n"
+                local full = "Cartel reminder:\n"
                 for _, m in ipairs(msgs) do full = full .. m .. "\n" end
                 broadcastToAll(full, {1, 0.5, 0})
             end
         end)
         if not ok_cartel then
             local msg = "Error in start_chapter cartel check: " .. tostring(cartel_err)
-            print(msg)
+            broadcastToAll(msg, {1, 0, 0})
             if debug and debug.traceback then
-                print(debug.traceback())
+                broadcastToAll(debug.traceback(), {1, 0, 0})
             end
         end
     end

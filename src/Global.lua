@@ -123,6 +123,478 @@ active_ambitions = {
 zoneWaits = {}
 -- track which deck objects we've already patched with the draw-bottom menu
 draw_bottom_patched = {}
+-- track which card objects we've already patched with the errata menu
+errata_menu_patched = {}
+
+local ERRATA_URL = "https://raw.githubusercontent.com/buriedgiantstudios/cards/refs/heads/master/content/errata/arcs/en-US.yml"
+local ERRATA_CACHE_SECONDS = 300
+local errata_cache_lookup = nil
+local errata_cache_time = 0
+local errata_fetch_in_flight = false
+local errata_pending_callbacks = {}
+local FAQ_URL = "https://raw.githubusercontent.com/buriedgiantstudios/cards/refs/heads/master/content/faq/arcs/en-US.yml"
+local FAQ_CACHE_SECONDS = 300
+local faq_cache_lookup = nil
+local faq_cache_time = 0
+local faq_fetch_in_flight = false
+local faq_pending_callbacks = {}
+
+local function trim(s)
+  s = tostring(s or "")
+  s = s:gsub("^%s+", "")
+  s = s:gsub("%s+$", "")
+  return s
+end
+
+local function strip_outer_quotes(s)
+  s = trim(s)
+  local first = s:sub(1, 1)
+  local last = s:sub(-1)
+  if (first == '"' and last == '"') or (first == "'" and last == "'") then
+    s = s:sub(2, -2)
+  end
+  s = s:gsub('\\"', '"')
+  s = s:gsub("\\'", "'")
+  return s
+end
+
+local function normalize_card_name(name)
+  local n = trim(name)
+  n = n:gsub("%$link:([^%$]+)%$", "%1")
+  n = n:gsub("[%*_`]", "")
+  n = n:gsub("[^%w%s]", "")
+  n = n:lower()
+  n = n:gsub("%s+", " ")
+  return trim(n)
+end
+
+local function get_card_label_for_errata(card_obj)
+  if not card_obj then return "" end
+
+  local name = ""
+  local desc = ""
+  pcall(function() if card_obj.getName then name = tostring(card_obj.getName() or "") end end)
+  pcall(function() if card_obj.getDescription then desc = tostring(card_obj.getDescription() or "") end end)
+
+  local lname = string.lower(trim(name))
+  local label = trim(name)
+
+  -- Prefer description for generic placeholders.
+  if lname == "action card" or lname == "card" then
+    label = trim(desc)
+  elseif label == "" and trim(desc) ~= "" then
+    label = trim(desc)
+  end
+
+  return trim(label)
+end
+
+local function parse_errata_yaml_lookup(yaml_text)
+  local lookup = {}
+  if not yaml_text or yaml_text == "" then return lookup end
+
+  local pending_texts = {}
+  local current_text = nil
+  local collecting_text = false
+
+  local function push_current_text()
+    if current_text and trim(current_text) ~= "" then
+      table.insert(pending_texts, trim(current_text))
+    end
+    current_text = nil
+    collecting_text = false
+  end
+
+  local pos = 1
+  while pos <= #yaml_text do
+    local nl = yaml_text:find("\n", pos, true)
+    local line
+    if nl then
+      line = yaml_text:sub(pos, nl - 1)
+      pos = nl + 1
+    else
+      line = yaml_text:sub(pos)
+      pos = #yaml_text + 1
+    end
+    if line:sub(-1) == "\r" then
+      line = line:sub(1, -2)
+    end
+
+    local card_value = line:match("^%s*card:%s*(.+)%s*$")
+    if card_value then
+      push_current_text()
+      local card_name = strip_outer_quotes(card_value)
+      local key = normalize_card_name(card_name)
+      if key ~= "" then
+        if not lookup[key] then
+          lookup[key] = { card = card_name, texts = {} }
+        end
+        for _, t in ipairs(pending_texts) do
+          table.insert(lookup[key].texts, t)
+        end
+      end
+      pending_texts = {}
+    else
+      local text_value = line:match("^%s*-%s*text:%s*(.*)$")
+      if text_value == nil then
+        text_value = line:match("^%s*text:%s*(.*)$")
+      end
+
+      if text_value ~= nil then
+        push_current_text()
+        current_text = strip_outer_quotes(text_value)
+        collecting_text = true
+      elseif collecting_text then
+        local is_new_key = false
+        if line:match("^%s*card:%s*") or line:match("^%s*-%s*errata:%s*$") or line:match("^%s*errata:%s*$") then
+          is_new_key = true
+        elseif line:match("^%s+[%a_][%w_%-]*:%s*") then
+          is_new_key = true
+        end
+
+        if is_new_key then
+          push_current_text()
+        else
+          local continuation = trim(line)
+          if continuation ~= "" then
+            if current_text == "" then
+              current_text = continuation
+            else
+              current_text = current_text .. " " .. continuation
+            end
+          end
+        end
+      end
+    end
+  end
+
+  push_current_text()
+  return lookup
+end
+
+local function parse_faq_yaml_lookup(yaml_text)
+  local lookup = {}
+  if not yaml_text or yaml_text == "" then return lookup end
+
+  local current_card = nil
+  local current_item = nil
+  local current_section = nil
+  local current_text = nil
+  local current_key_indent = 0
+
+  local function normalize_block_text(value)
+    value = trim(value)
+    if value == ">" or value == ">-" or value == "|" or value == "|-" then
+      return ""
+    end
+    return strip_outer_quotes(value)
+  end
+
+  local function flush_current_text()
+    if current_section and current_item and current_text ~= nil then
+      current_item[current_section] = trim(current_text)
+    end
+    current_section = nil
+    current_text = nil
+    current_key_indent = 0
+  end
+
+  local function flush_current_item()
+    flush_current_text()
+    if current_card and current_item and (trim(current_item.q) ~= "" or trim(current_item.a) ~= "") then
+      local key = normalize_card_name(current_card)
+      if key ~= "" then
+        if not lookup[key] then
+          lookup[key] = { card = current_card, entries = {} }
+        end
+        table.insert(lookup[key].entries, {
+          q = trim(current_item.q),
+          a = trim(current_item.a)
+        })
+      end
+    end
+    current_item = nil
+  end
+
+  local pos = 1
+  while pos <= #yaml_text do
+    local nl = yaml_text:find("\n", pos, true)
+    local line
+    if nl then
+      line = yaml_text:sub(pos, nl - 1)
+      pos = nl + 1
+    else
+      line = yaml_text:sub(pos)
+      pos = #yaml_text + 1
+    end
+    if line:sub(-1) == "\r" then
+      line = line:sub(1, -2)
+    end
+
+    local indent = #line:match("^(%s*)")
+    local card_value = line:match("^%s*card:%s*(.+)%s*$")
+    if card_value then
+      flush_current_item()
+      current_card = strip_outer_quotes(card_value)
+    else
+      if current_section and indent > current_key_indent then
+        local continuation = trim(line)
+        if continuation ~= "" then
+          if current_text == "" then
+            current_text = continuation
+          else
+            current_text = current_text .. " " .. continuation
+          end
+        end
+      else
+        if current_section then
+          flush_current_text()
+        end
+
+        local q_value = line:match("^%s*%-?%s*q:%s*(.*)$")
+        if q_value ~= nil then
+          if current_item and (trim(current_item.q) ~= "" or trim(current_item.a) ~= "") then
+            flush_current_item()
+          end
+          if not current_item then current_item = { q = "", a = "" } end
+          current_section = "q"
+          current_key_indent = indent
+          current_text = normalize_block_text(q_value)
+        else
+          local a_value = line:match("^%s*%-?%s*a:%s*(.*)$")
+          if a_value ~= nil then
+            if not current_item then current_item = { q = "", a = "" } end
+            current_section = "a"
+            current_key_indent = indent
+            current_text = normalize_block_text(a_value)
+          end
+        end
+      end
+    end
+  end
+
+  flush_current_item()
+  return lookup
+end
+
+local function finish_errata_fetch(lookup, err)
+  errata_fetch_in_flight = false
+  local callbacks = errata_pending_callbacks
+  errata_pending_callbacks = {}
+  for _, cb in ipairs(callbacks) do
+    pcall(function() cb(lookup, err) end)
+  end
+end
+
+local function finish_faq_fetch(lookup, err)
+  faq_fetch_in_flight = false
+  local callbacks = faq_pending_callbacks
+  faq_pending_callbacks = {}
+  for _, cb in ipairs(callbacks) do
+    pcall(function() cb(lookup, err) end)
+  end
+end
+
+local function fetch_errata_lookup(callback)
+  if callback then
+    table.insert(errata_pending_callbacks, callback)
+  end
+
+  if errata_cache_lookup and (os.time() - errata_cache_time) < ERRATA_CACHE_SECONDS then
+    finish_errata_fetch(errata_cache_lookup, nil)
+    return
+  end
+
+  if errata_fetch_in_flight then
+    return
+  end
+  errata_fetch_in_flight = true
+
+  if not WebRequest or not WebRequest.custom then
+    finish_errata_fetch(nil, "WebRequest API not available")
+    return
+  end
+
+  local headers = { ["Accept"] = "text/plain, text/yaml, */*" }
+  local ok, err = pcall(function()
+    WebRequest.custom(ERRATA_URL, "GET", true, "", headers, function(response)
+      if response and response.is_error then
+        local msg = (response and response.text) and response.text or tostring(response)
+        finish_errata_fetch(nil, msg)
+        return
+      end
+
+      local body = (response and response.text) and tostring(response.text) or ""
+      if body == "" then
+        finish_errata_fetch(nil, "Empty response")
+        return
+      end
+
+      local lookup = parse_errata_yaml_lookup(body)
+      errata_cache_lookup = lookup
+      errata_cache_time = os.time()
+      finish_errata_fetch(lookup, nil)
+    end)
+  end)
+
+  if not ok then
+    finish_errata_fetch(nil, tostring(err))
+  end
+end
+
+local function fetch_faq_lookup(callback)
+  if callback then
+    table.insert(faq_pending_callbacks, callback)
+  end
+
+  if faq_cache_lookup and (os.time() - faq_cache_time) < FAQ_CACHE_SECONDS then
+    finish_faq_fetch(faq_cache_lookup, nil)
+    return
+  end
+
+  if faq_fetch_in_flight then
+    return
+  end
+  faq_fetch_in_flight = true
+
+  if not WebRequest or not WebRequest.custom then
+    finish_faq_fetch(nil, "WebRequest API not available")
+    return
+  end
+
+  local headers = { ["Accept"] = "text/plain, text/yaml, */*" }
+  local ok, err = pcall(function()
+    WebRequest.custom(FAQ_URL, "GET", true, "", headers, function(response)
+      if response and response.is_error then
+        local msg = (response and response.text) and response.text or tostring(response)
+        finish_faq_fetch(nil, msg)
+        return
+      end
+
+      local body = (response and response.text) and tostring(response.text) or ""
+      if body == "" then
+        finish_faq_fetch(nil, "Empty response")
+        return
+      end
+
+      local lookup = parse_faq_yaml_lookup(body)
+      faq_cache_lookup = lookup
+      faq_cache_time = os.time()
+      finish_faq_fetch(lookup, nil)
+    end)
+  end)
+
+  if not ok then
+    finish_faq_fetch(nil, tostring(err))
+  end
+end
+
+local function show_card_errata(card_obj, player_color)
+  local card_label = get_card_label_for_errata(card_obj)
+  if card_label == "" then
+    broadcastToColor("Errata: Could not determine this card's name.", player_color, {1, 0.4, 0.4})
+    return
+  end
+
+  fetch_errata_lookup(function(lookup, err)
+    if not lookup then
+      broadcastToColor("Errata fetch failed: " .. tostring(err or "unknown error"), player_color, {1, 0.4, 0.4})
+      return
+    end
+
+    local key = normalize_card_name(card_label)
+    local entry = lookup[key]
+    if not entry or not entry.texts or #entry.texts == 0 then
+      broadcastToColor("No errata found for " .. card_label .. ".", player_color, {0.8, 0.8, 0.8})
+      return
+    end
+
+    broadcastToAll("Errata for " .. tostring(entry.card or card_label) .. ":", {1, 0.85, 0.25})
+    for _, text in ipairs(entry.texts) do
+      broadcastToAll("- " .. tostring(text), {1, 0.85, 0.25})
+    end
+  end)
+end
+
+local function show_card_faq(card_obj, player_color)
+  local card_label = get_card_label_for_errata(card_obj)
+  if card_label == "" then
+    broadcastToColor("FAQ: Could not determine this card's name.", player_color, {1, 0.4, 0.4})
+    return
+  end
+
+  fetch_faq_lookup(function(lookup, err)
+    if not lookup then
+      broadcastToColor("FAQ fetch failed: " .. tostring(err or "unknown error"), player_color, {1, 0.4, 0.4})
+      return
+    end
+
+    local key = normalize_card_name(card_label)
+    local entry = lookup[key]
+    if not entry or not entry.entries or #entry.entries == 0 then
+      broadcastToColor("No FAQ found for " .. card_label .. ".", player_color, {0.8, 0.8, 0.8})
+      return
+    end
+
+    broadcastToAll("FAQ for " .. tostring(entry.card or card_label) .. ":", {0.55, 0.9, 1})
+    for _, pair in ipairs(entry.entries) do
+      if pair.q and trim(pair.q) ~= "" then
+        broadcastToAll("Q: " .. tostring(pair.q), {0.55, 0.9, 1})
+      end
+      if pair.a and trim(pair.a) ~= "" then
+        broadcastToAll("A: " .. tostring(pair.a), {0.55, 0.9, 1})
+      end
+    end
+  end)
+end
+
+local function add_errata_menu_to_card(object)
+  if not object then return end
+
+  local object_type = nil
+  pcall(function() object_type = object.type end)
+  if object_type ~= "Card" then return end
+
+  local guid = nil
+  pcall(function() if object.getGUID then guid = object.getGUID() end end)
+  if not guid and object.guid then guid = object.guid end
+  if not guid then return end
+
+  if errata_menu_patched[guid] then return end
+
+  pcall(function()
+    object.addContextMenuItem("Show Errata", function(player_color, position, clicked_object)
+      local target = clicked_object or object
+      show_card_errata(target, player_color)
+    end)
+    object.addContextMenuItem("Show FAQ", function(player_color, position, clicked_object)
+      local target = clicked_object or object
+      show_card_faq(target, player_color)
+    end)
+  end)
+
+  errata_menu_patched[guid] = true
+end
+
+local function scan_cards_for_errata_menu()
+  local seen = {}
+  for _, object in ipairs(getObjects()) do
+    local guid = nil
+    if object and object.type == "Card" then
+      if object.getGUID then guid = object.getGUID() end
+      if not guid and object.guid then guid = object.guid end
+      if guid then seen[guid] = true end
+      add_errata_menu_to_card(object)
+    end
+  end
+
+  for guid, _ in pairs(errata_menu_patched) do
+    if not seen[guid] then
+      errata_menu_patched[guid] = nil
+    end
+  end
+end
+
 -- Scan the action deck zone periodically and attach the "Draw bottom card" menu
 function scan_action_deck_zone()
   local zone = getObjectFromGUID(action_deck_zone_GUID)
@@ -487,6 +959,7 @@ end
 function onObjectSpawn(object)
     Initiative.add_menu()
     Supplies.addMenuToObject(object)
+  add_errata_menu_to_card(object)
   -- If the zero marker spawns (or finishes loading), ensure its ambition button is attached
   local ok, guid = pcall(function() return object.getGUID and object.getGUID() end)
   if ok and guid and guid == zero_marker_GUID then
@@ -2108,7 +2581,13 @@ function onLoad(script_state)
     end
 
     local action_deck = ActionCards.get_action_deck()
-    action_deck.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom)
+    if action_deck then
+      action_deck.addContextMenuItem("Draw bottom card", ActionCards.draw_bottom)
+    else
+      LOG.WARNING("Global.onload: action deck not found; skipping Draw bottom card menu")
+    end
+    scan_cards_for_errata_menu()
+    Wait.time(scan_cards_for_errata_menu, 1)
 
     for _, obj in pairs(getObjectsWithTag("Noninteractable")) do
         obj.locked = true
