@@ -4,6 +4,11 @@ This folder is intended to be a standalone Node.js project that can be cloned an
 
 It accepts POST requests at `/overlay` and broadcasts the latest payload to browser clients via Server-Sent Events at `/events`. The browser page at `/` renders a simple OBS-friendly overlay.
 
+## Requirements
+
+- **Node.js** (v14 or later recommended) — [Download from nodejs.org](https://nodejs.org)
+  - This includes `npm`, which is used to install dependencies and run the server.
+
 ## Clone / Run
 
 ```bash
