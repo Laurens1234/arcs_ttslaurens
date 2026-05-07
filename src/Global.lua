@@ -168,6 +168,21 @@ local function normalize_card_name(name)
   return trim(n)
 end
 
+local function split_slash_keys(name)
+  local keys = {}
+  if not name then return keys end
+  local full = normalize_card_name(name)
+  table.insert(keys, full)
+  local a, b = name:match("^(.-)%s*/%s*(.-)$")
+  if a and b then
+    local ka = normalize_card_name(a)
+    local kb = normalize_card_name(b)
+    if ka ~= full then table.insert(keys, ka) end
+    if kb ~= full and kb ~= ka then table.insert(keys, kb) end
+  end
+  return keys
+end
+
 local function get_card_label_for_errata(card_obj)
   if not card_obj then return "" end
 
@@ -276,7 +291,8 @@ local function parse_faq_yaml_lookup(yaml_text)
   local lookup = {}
   if not yaml_text or yaml_text == "" then return lookup end
 
-  local current_card = nil
+  local pending_card = nil  -- card from most recent "card:" line, used for next entries
+  local parsed_items = {}   -- buffer of parsed q/a items waiting for their card
   local current_item = nil
   local current_section = nil
   local current_text = nil
@@ -301,17 +317,8 @@ local function parse_faq_yaml_lookup(yaml_text)
 
   local function flush_current_item()
     flush_current_text()
-    if current_card and current_item and (trim(current_item.q) ~= "" or trim(current_item.a) ~= "") then
-      local key = normalize_card_name(current_card)
-      if key ~= "" then
-        if not lookup[key] then
-          lookup[key] = { card = current_card, entries = {} }
-        end
-        table.insert(lookup[key].entries, {
-          q = trim(current_item.q),
-          a = trim(current_item.a)
-        })
-      end
+    if current_item and (trim(current_item.q) ~= "" or trim(current_item.a) ~= "") then
+      table.insert(parsed_items, { q = trim(current_item.q), a = trim(current_item.a) })
     end
     current_item = nil
   end
@@ -334,24 +341,26 @@ local function parse_faq_yaml_lookup(yaml_text)
     local indent = #line:match("^(%s*)")
     local card_value = line:match("^%s*card:%s*(.+)%s*$")
     if card_value then
-      flush_current_item()
-      current_card = strip_outer_quotes(card_value)
-    else
-      if current_section and indent > current_key_indent then
-        local continuation = trim(line)
-        if continuation ~= "" then
-          if current_text == "" then
-            current_text = continuation
-          else
-            current_text = current_text .. " " .. continuation
+      -- When we see card:, associate any parsed items with this card immediately
+      pending_card = strip_outer_quotes(card_value)
+      if #parsed_items > 0 then
+        local key = normalize_card_name(pending_card)
+        if key ~= "" then
+          if not lookup[key] then lookup[key] = { card = pending_card, entries = {} } end
+          for _, it in ipairs(parsed_items) do
+            table.insert(lookup[key].entries, { q = it.q, a = it.a })
           end
         end
-      else
+        parsed_items = {}
+      end
+    else
+      -- detect explicit q: or a: keys first (they start new sections even if indented)
+      local q_value = line:match("^%s*%-?%s*q:%s*(.*)$")
+      local a_value = line:match("^%s*%-?%s*a:%s*(.*)$")
+      if q_value ~= nil or a_value ~= nil then
         if current_section then
           flush_current_text()
         end
-
-        local q_value = line:match("^%s*%-?%s*q:%s*(.*)$")
         if q_value ~= nil then
           if current_item and (trim(current_item.q) ~= "" or trim(current_item.a) ~= "") then
             flush_current_item()
@@ -361,12 +370,24 @@ local function parse_faq_yaml_lookup(yaml_text)
           current_key_indent = indent
           current_text = normalize_block_text(q_value)
         else
-          local a_value = line:match("^%s*%-?%s*a:%s*(.*)$")
-          if a_value ~= nil then
-            if not current_item then current_item = { q = "", a = "" } end
-            current_section = "a"
-            current_key_indent = indent
-            current_text = normalize_block_text(a_value)
+          if not current_item then current_item = { q = "", a = "" } end
+          current_section = "a"
+          current_key_indent = indent
+          current_text = normalize_block_text(a_value)
+        end
+      else
+        if current_section and indent > current_key_indent then
+          local continuation = trim(line)
+          if continuation ~= "" then
+            if current_text == "" then
+              current_text = continuation
+            else
+              current_text = current_text .. " " .. continuation
+            end
+          end
+        else
+          if current_section then
+            flush_current_text()
           end
         end
       end
@@ -502,16 +523,22 @@ local function show_card_errata(card_obj, player_color)
       return
     end
 
-    local key = normalize_card_name(card_label)
-    local entry = lookup[key]
-    if not entry or not entry.texts or #entry.texts == 0 then
-      broadcastToColor("No errata found for " .. card_label .. ".", player_color, {0.8, 0.8, 0.8})
-      return
+    local keys = split_slash_keys(card_label)
+    local found = false
+    for _, k in ipairs(keys) do
+      local entry = lookup[k]
+      if entry and entry.texts and #entry.texts > 0 then
+        found = true
+        local title = "Errata: " .. tostring(entry.card or card_label)
+        broadcastToAll("=== " .. title .. " ===", {1, 0.75, 0.15})
+        for i, text in ipairs(entry.texts) do
+          broadcastToAll("- " .. tostring(text), {1, 0.9, 0.4})
+          if i < #entry.texts then Wait.time(function() end, 0.05) end
+        end
+      end
     end
-
-    broadcastToAll("Errata for " .. tostring(entry.card or card_label) .. ":", {1, 0.85, 0.25})
-    for _, text in ipairs(entry.texts) do
-      broadcastToAll("- " .. tostring(text), {1, 0.85, 0.25})
+    if not found then
+      broadcastToColor("No errata found for " .. card_label .. ".", player_color, {0.8, 0.8, 0.8})
     end
   end)
 end
@@ -529,21 +556,32 @@ local function show_card_faq(card_obj, player_color)
       return
     end
 
-    local key = normalize_card_name(card_label)
-    local entry = lookup[key]
-    if not entry or not entry.entries or #entry.entries == 0 then
-      broadcastToColor("No FAQ found for " .. card_label .. ".", player_color, {0.8, 0.8, 0.8})
-      return
+    local keys = split_slash_keys(card_label)
+    local found = false
+    local q_color = {0.45, 0.8, 1}   -- light cyan for questions
+    local a_color = {0.6, 1, 0.6}    -- light green for answers
+    for _, k in ipairs(keys) do
+      local entry = lookup[k]
+      if entry and entry.entries and #entry.entries > 0 then
+        found = true
+        local title = "FAQ: " .. tostring(entry.card or card_label)
+        broadcastToAll("=== " .. title .. " ===", {0.35, 0.7, 1})
+        for idx, pair in ipairs(entry.entries) do
+          if pair.q and trim(pair.q) ~= "" then
+            broadcastToAll("Q" .. idx .. ": " .. tostring(pair.q), q_color)
+          end
+          if pair.a and trim(pair.a) ~= "" then
+            broadcastToAll("A" .. idx .. ": " .. tostring(pair.a), a_color)
+          end
+          -- blank line between entries for readability
+          if idx < #entry.entries then
+            broadcastToAll(" ", {0.9, 0.9, 0.9})
+          end
+        end
+      end
     end
-
-    broadcastToAll("FAQ for " .. tostring(entry.card or card_label) .. ":", {0.55, 0.9, 1})
-    for _, pair in ipairs(entry.entries) do
-      if pair.q and trim(pair.q) ~= "" then
-        broadcastToAll("Q: " .. tostring(pair.q), {0.55, 0.9, 1})
-      end
-      if pair.a and trim(pair.a) ~= "" then
-        broadcastToAll("A: " .. tostring(pair.a), {0.55, 0.9, 1})
-      end
+    if not found then
+      broadcastToColor("No FAQ found for " .. card_label .. ".", player_color, {0.8, 0.8, 0.8})
     end
   end)
 end
@@ -562,15 +600,35 @@ local function add_errata_menu_to_card(object)
 
   if errata_menu_patched[guid] then return end
 
+  local card_label = get_card_label_for_errata(object)
+  local keys = split_slash_keys(card_label)
+
   pcall(function()
-    object.addContextMenuItem("Show Errata", function(player_color, position, clicked_object)
-      local target = clicked_object or object
-      show_card_errata(target, player_color)
-    end)
-    object.addContextMenuItem("Show FAQ", function(player_color, position, clicked_object)
-      local target = clicked_object or object
-      show_card_faq(target, player_color)
-    end)
+    local has_errata = false
+    local has_faq = false
+    if errata_cache_lookup then
+      for _, k in ipairs(keys) do
+        if errata_cache_lookup[k] then has_errata = true break end
+      end
+    end
+    if faq_cache_lookup then
+      for _, k in ipairs(keys) do
+        if faq_cache_lookup[k] then has_faq = true break end
+      end
+    end
+
+    if has_errata then
+      object.addContextMenuItem("Show Errata", function(player_color, position, clicked_object)
+        local target = clicked_object or object
+        show_card_errata(target, player_color)
+      end)
+    end
+    if has_faq then
+      object.addContextMenuItem("Show FAQ", function(player_color, position, clicked_object)
+        local target = clicked_object or object
+        show_card_faq(target, player_color)
+      end)
+    end
   end)
 
   errata_menu_patched[guid] = true
@@ -593,6 +651,25 @@ local function scan_cards_for_errata_menu()
       errata_menu_patched[guid] = nil
     end
   end
+end
+
+local function proactive_fetch_errata_and_faq()
+  fetch_errata_lookup(function(lookup, err)
+    if not err then
+      LOG.INFO("Errata YAML pre-fetched and cached")
+      scan_cards_for_errata_menu()
+    else
+      LOG.WARNING("Failed to pre-fetch errata YAML: " .. tostring(err))
+    end
+  end)
+  fetch_faq_lookup(function(lookup, err)
+    if not err then
+      LOG.INFO("FAQ YAML pre-fetched and cached")
+      scan_cards_for_errata_menu()
+    else
+      LOG.WARNING("Failed to pre-fetch FAQ YAML: " .. tostring(err))
+    end
+  end)
 end
 
 -- Scan the action deck zone periodically and attach the "Draw bottom card" menu
@@ -2586,8 +2663,8 @@ function onLoad(script_state)
     else
       LOG.WARNING("Global.onload: action deck not found; skipping Draw bottom card menu")
     end
-    scan_cards_for_errata_menu()
-    Wait.time(scan_cards_for_errata_menu, 1)
+    proactive_fetch_errata_and_faq()
+    Wait.time(scan_cards_for_errata_menu, 2)
 
     for _, obj in pairs(getObjectsWithTag("Noninteractable")) do
         obj.locked = true
