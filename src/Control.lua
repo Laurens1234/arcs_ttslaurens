@@ -248,7 +248,7 @@ function start_chapter()
     end
 
     -- Remind if overlay is on
-    if overlay_sending_enabled then
+    if Global.getVar("overlay_sending_enabled") then
         broadcastToAll("Reminder: Overlay is ON - player hands are being displayed", {0.2, 0.8, 0.2})
     end
 end
