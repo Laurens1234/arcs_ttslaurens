@@ -95,7 +95,12 @@ function RoundManager.endRound()
     end
     broadcastToAll("End Round\n", Color.Purple)
 
-    Turns.turn_color = Global.getVar("initiative_player")
+    local next_turn_color = Global.getVar("initiative_player")
+    if next_turn_color then
+        Turns.turn_color = next_turn_color
+    else
+        LOG.WARNING("Skipping turn color update because initiative player is unknown")
+    end
     Initiative.unseize()
 end
 

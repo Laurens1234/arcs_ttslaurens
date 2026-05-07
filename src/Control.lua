@@ -2,6 +2,8 @@ local ActionCards = require("src/ActionCards")
 local AmbitionMarkers = require("src/AmbitionMarkers")
 local Initiative = require("src/InitiativeMarker")
 local RoundManager = require("src/RoundManager")
+require("src/GUIDs")
+local SupplyManager = require("src/Supplies")
 
 control_GUID = Global.getVar("control_GUID")
 
@@ -215,6 +217,119 @@ function start_chapter()
 
     if ActionCards.check_hands() then
         return
+    end
+
+    --------------------------------------------------------------------
+    -- CARTEL CHECK (protected): if any player has a '* Cartel' card in
+    -- their player area, detect matching resources in other players'
+    -- area zones, return them to supply, and notify players.
+    --------------------------------------------------------------------
+    do
+        local ok_cartel, cartel_err = pcall(function()
+            local function get_resource_key_from_name(name)
+                if not name then return nil end
+                local nl = string.lower(name)
+                if string.find(nl, "material") then return "materials", "material" end
+                if string.find(nl, "fuel") then return "fuel", "fuel" end
+                if string.find(nl, "weapon") or string.find(nl, "weapons") then return "weapons", "weapon" end
+                if string.find(nl, "psionic") or string.find(nl, "psionics") then return "psionics", "psionic" end
+                if string.find(nl, "relic") then return "relics", "relic" end
+                return nil
+            end
+
+            local cartel_owners = {}
+            for colname, pdata in pairs(player_pieces_GUIDs) do
+                local area_guid = pdata and pdata.area_zone
+                if area_guid then
+                            local zone = nil
+                            local ok_get_zone, z = pcall(function() return getObjectFromGUID(area_guid) end)
+                            if ok_get_zone then zone = z end
+                            if zone and zone.getObjects then
+                                local ok_objs, objs = pcall(function() return zone.getObjects() end)
+                                if ok_objs and objs then
+                                    for _, obj in ipairs(objs) do
+                                        local ok, nm = pcall(function() return obj.getName and obj.getName() end)
+                                        if ok and nm and string.find(string.lower(nm), "cartel") then
+                                            local resource_key, match_word = get_resource_key_from_name(nm)
+                                            if resource_key then
+                                                cartel_owners[colname] = cartel_owners[colname] or {}
+                                                table.insert(cartel_owners[colname], {cartel_name = nm, resource_key = resource_key, match_word = match_word, guid = (pcall(function() return obj.getGUID and obj.getGUID() end) and obj.getGUID and obj.getGUID() or "?")})
+                                            end
+                                        end
+                                    end
+                                else
+                                    print("Warning: failed to getObjects() for area zone of ", colname)
+                                end
+                            else
+                                print("Warning: area zone not found or invalid for ", colname, tostring(area_guid))
+                            end
+                end
+            end
+
+            local msgs = {}
+            for owner_color, cartels in pairs(cartel_owners) do
+                for _, info in ipairs(cartels) do
+                    local cartel_name = info.cartel_name
+                    local match_word = info.match_word
+                    for victim_color, vdata in pairs(player_pieces_GUIDs) do
+                        if victim_color ~= owner_color then
+                            local vz = nil
+                            local ok_get_vz, z2 = pcall(function() return getObjectFromGUID(vdata.area_zone) end)
+                            if ok_get_vz then vz = z2 end
+                            if vz and vz.getObjects then
+                                local ok_objs2, objs2 = pcall(function() return vz.getObjects() end)
+                                local found = {}
+                                if ok_objs2 and objs2 then
+                                    for _, o in ipairs(objs2) do
+                                        local ok2, onm = pcall(function() return o.getName and o.getName() end)
+                                        if ok2 and onm and string.find(string.lower(onm), match_word) then
+                                            table.insert(found, o)
+                                        end
+                                    end
+                                else
+                                    print("Warning: failed to getObjects() for victim area zone ", victim_color)
+                                end
+                                
+                                if #found > 0 then
+                                    -- Return each found resource object to its configured supply
+                                    for _, robj in ipairs(found) do
+                                        local robj_guid = "?"
+                                        local ok_guid, g = pcall(function() return robj.getGUID and robj.getGUID() end)
+                                        if ok_guid and g then robj_guid = g end
+                                        local ok_name, rname = pcall(function() return robj.getName and robj.getName() end)
+                                        print("Returning cartel resource found in ", victim_color, ": guid=", robj_guid, " name=", (ok_name and rname or "?"))
+                                        if robj and robj.getName then
+                                            local ok, err = pcall(function()
+                                                SupplyManager.returnObject(robj, nil, victim_color)
+                                            end)
+                                            if not ok then
+                                                print("Error returning cartel resource for ", victim_color, tostring(err), " guid=", robj_guid)
+                                            end
+                                        else
+                                            print("Skipping invalid object when returning cartel resource for ", victim_color, " guid=", robj_guid)
+                                        end
+                                    end
+                                    table.insert(msgs, victim_color .. " had " .. tostring(#found) .. " " .. match_word .. "(s) in their player area. Returned to supply because of " .. owner_color .. "'s " .. cartel_name .. ".")
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            if #msgs > 0 then
+                local full = "Cartel resources must be returned to supply:\n"
+                for _, m in ipairs(msgs) do full = full .. m .. "\n" end
+                broadcastToAll(full, {1, 0.5, 0})
+            end
+        end)
+        if not ok_cartel then
+            local msg = "Error in start_chapter cartel check: " .. tostring(cartel_err)
+            print(msg)
+            if debug and debug.traceback then
+                print(debug.traceback())
+            end
+        end
     end
 
     --------------------------------------------------------------------
