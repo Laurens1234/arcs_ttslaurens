@@ -559,7 +559,7 @@ function ActionCards.union_handling(played_objects)
                     description = closest_face_up_action_card.getDescription(),
                     reserved_by = obj.getName()
                 })
-                print("Whoever played " .. obj.getName() .. ", please pull " .. closest_face_up_action_card.getDescription() .. " back into your hand.")
+                broadcastToAll("Whoever played " .. obj.getName() .. ", please pull " .. closest_face_up_action_card.getDescription() .. " back into your hand.")
 
                 -- Move the union card to court discard
                 local court_discard = getObjectFromGUID(court_discard_zone_GUID)

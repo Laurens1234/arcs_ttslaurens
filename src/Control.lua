@@ -145,7 +145,7 @@ function start_chapter()
     local deck = ActionCards.get_action_deck()
 
     if not deck then
-        print("ERROR: Action deck not found in action deck zone")
+        LOG.ERROR("Action deck not found in action deck zone")
         return
     end
 
@@ -298,7 +298,7 @@ function start_chapter()
                                         local ok_name, rname = pcall(function() return robj.getName and robj.getName() end)
                                         broadcastToAll("Cartel resource reminder detected in " .. tostring(victim_color) .. ": guid=" .. tostring(robj_guid) .. " name=" .. tostring(ok_name and rname or "?"), {1, 0.5, 0})
                                     end
-                                    table.insert(msgs, victim_color .. " has " .. tostring(#found) .. " " .. match_word .. "(s) in their player area because of " .. owner_color .. "'s " .. cartel_name .. ". Please return them to supply.")
+                                    table.insert(msgs, victim_color .. " has " .. tostring(#found) .. " " .. match_word .. "(s) in their player area because of " .. owner_color .. "'s " .. cartel_name .. ". Please return them to supply (unless Frozen).")
                                 end
                             end
                         end
