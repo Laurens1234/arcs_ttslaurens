@@ -348,11 +348,176 @@ function ambitionMarkers:calculate_player_ambition_points()
     return estimates
 end
 
+-- Helper: apply a card-based ambition demotion (e.g., Elder for Tyrant, Archivist for Tycoon, Warrior for Empath)
+local function apply_ambition_card_demotion(ambition_name, card_name, per_player, result, prizes, untied_winners, active_players)
+    if ambition_name and card_name then
+        for _, p in ipairs(active_players) do
+            local has_card = false
+            local area_zone_guid = nil
+            pcall(function()
+                if player_pieces_GUIDs and player_pieces_GUIDs[p.color] then
+                    area_zone_guid = player_pieces_GUIDs[p.color].area_zone
+                end
+            end)
+            if area_zone_guid then
+                local area_zone = getObjectFromGUID(area_zone_guid)
+                if area_zone and area_zone.getObjects then
+                    local objs = area_zone.getObjects()
+                    for _, obj in ipairs(objs) do
+                        local obj_name = ""
+                        pcall(function() obj_name = obj.getName() or "" end)
+                        if string.find(obj_name or "", card_name) then
+                            has_card = true
+                            break
+                        end
+                    end
+                end
+            end
+
+            if has_card then
+                local prev = per_player[p.color] or 0
+                
+                -- Only process if player actually qualified (had some points)
+                if prev > 0 then
+                    -- Find which rank the player currently earned
+                    local current_rank = nil
+                    for i, prize in ipairs(prizes) do
+                        if prev == prize then
+                            current_rank = i
+                            break
+                        end
+                    end
+                    
+                    if current_rank and current_rank > 0 then
+                        -- Demote by one rank
+                        local new_rank = current_rank + 1
+                        local new_prize = prizes[new_rank] or 0
+                        
+                        -- Adjust only this player's points
+                        local adjustment = new_prize - prev
+                        result.totals[p.color] = (result.totals[p.color] or 0) + adjustment
+                        per_player[p.color] = new_prize
+                        
+                        -- If they were untied first place winner, remove city bonus
+                        if current_rank == 1 and untied_winners[ambition_name] == p.color then
+                            untied_winners[ambition_name] = nil
+                        end
+                        
+                        -- Record demotion note
+                        if not result.ambition_notes[ambition_name] then result.ambition_notes[ambition_name] = {} end
+                        local rank_label = nil
+                        if new_rank == 2 then
+                            rank_label = "2nd"
+                        elseif new_rank == 3 then
+                            rank_label = "3rd"
+                        else
+                            rank_label = tostring(new_prize) .. " points"
+                        end
+                        local extra = ""
+                        if current_rank == 1 then
+                            extra = "; no city bonus"
+                        end
+                        result.ambition_notes[ambition_name][p.color] = "(" .. card_name .. ": demoted to " .. rank_label .. extra .. ")"
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Helper: apply Noble card restriction (only points if untied 1st place, else 0)
+local function apply_ambition_card_noble(ambition_name, per_player, result, untied_winners, active_players)
+    for _, p in ipairs(active_players) do
+        local has_noble = false
+        local area_zone_guid = nil
+        pcall(function()
+            if player_pieces_GUIDs and player_pieces_GUIDs[p.color] then
+                area_zone_guid = player_pieces_GUIDs[p.color].area_zone
+            end
+        end)
+        if area_zone_guid then
+            local area_zone = getObjectFromGUID(area_zone_guid)
+            if area_zone and area_zone.getObjects then
+                local objs = area_zone.getObjects()
+                for _, obj in ipairs(objs) do
+                    local obj_name = ""
+                    pcall(function() obj_name = obj.getName() or "" end)
+                    if string.find(obj_name or "", "Noble") then
+                        has_noble = true
+                        break
+                    end
+                end
+            end
+        end
+
+        if has_noble then
+            local prev = per_player[p.color] or 0
+            
+            -- Only keep points if they were untied first place winner
+            if untied_winners[ambition_name] ~= p.color then
+                if prev > 0 then
+                    -- Record note about losing points
+                    if not result.ambition_notes[ambition_name] then result.ambition_notes[ambition_name] = {} end
+                    result.ambition_notes[ambition_name][p.color] = "(Noble: no points unless untied 1st place)"
+                    -- Set to 0
+                    result.totals[p.color] = (result.totals[p.color] or 0) - prev
+                    per_player[p.color] = 0
+                end
+            end
+        end
+    end
+end
+
+-- Helper: block points for a specific ambition if player has a card
+local function apply_ambition_card_block(current_ambition, blocked_ambition, card_name, per_player, result, untied_winners, active_players)
+    if current_ambition ~= blocked_ambition then
+        return
+    end
+
+    for _, p in ipairs(active_players) do
+        local has_card = false
+        local area_zone_guid = nil
+        pcall(function()
+            if player_pieces_GUIDs and player_pieces_GUIDs[p.color] then
+                area_zone_guid = player_pieces_GUIDs[p.color].area_zone
+            end
+        end)
+        if area_zone_guid then
+            local area_zone = getObjectFromGUID(area_zone_guid)
+            if area_zone and area_zone.getObjects then
+                local objs = area_zone.getObjects()
+                for _, obj in ipairs(objs) do
+                    local obj_name = ""
+                    pcall(function() obj_name = obj.getName() or "" end)
+                    if string.find(obj_name or "", card_name) then
+                        has_card = true
+                        break
+                    end
+                end
+            end
+        end
+
+        if has_card then
+            local prev = per_player[p.color] or 0
+            if prev > 0 then
+                -- Record note about blocking
+                if not result.ambition_notes[blocked_ambition] then result.ambition_notes[blocked_ambition] = {} end
+                result.ambition_notes[blocked_ambition][p.color] = "(" .. card_name .. ": blocked)"
+                -- Set to 0
+                result.totals[p.color] = (result.totals[p.color] or 0) - prev
+                per_player[p.color] = 0
+                if untied_winners[blocked_ambition] == p.color then
+                    untied_winners[blocked_ambition] = nil
+                end
+            end
+        end
+    end
+end
 
 -- Build a detailed breakdown per ambition token and per-player assignment.
 -- Returns a table: { totals = {color->points}, tokens = { { guid=..., ambition=..., prizes={...}, per_player={color->points} } } }
 function ambitionMarkers:build_detailed_estimates()
-    local result = { totals = {}, tokens = {}, ambition_bonuses = {} }
+    local result = { totals = {}, tokens = {}, ambition_bonuses = {}, ambition_notes = {} }
     local active_players = Global.getVar("active_players") or {}
     for _, p in ipairs(active_players) do result.totals[p.color] = 0 end
 
@@ -437,7 +602,20 @@ function ambitionMarkers:build_detailed_estimates()
                 pos = j
             end
 
-            table.insert(result.tokens, { guid = guid, ambition = ambition_name, prizes = prizes, per_player = per_player, flipped = flipped })
+                -- Apply card-based ambition demotions
+                apply_ambition_card_demotion("Tyrant", "Elder", per_player, result, prizes, untied_winners, active_players)
+                apply_ambition_card_demotion("Tycoon", "Archivist", per_player, result, prizes, untied_winners, active_players)
+                apply_ambition_card_demotion("Empath", "Warrior", per_player, result, prizes, untied_winners, active_players)
+                apply_ambition_card_demotion(ambition_name, "VOW OF SURVIVAL", per_player, result, prizes, untied_winners, active_players)
+
+                -- Apply card-based ambition blocks (set to 0)
+                apply_ambition_card_block(ambition_name, "Warlord", "OATH OF PEACE", per_player, result, untied_winners, active_players)
+                apply_ambition_card_block(ambition_name, "Tycoon", "IRE OF THE TYCOONS", per_player, result, untied_winners, active_players)
+
+                -- Apply Noble card restriction (all ambitions)
+                apply_ambition_card_noble(ambition_name, per_player, result, untied_winners, active_players)
+
+                table.insert(result.tokens, { guid = guid, ambition = ambition_name, prizes = prizes, per_player = per_player, flipped = flipped })
         end
         ::continue::
     end

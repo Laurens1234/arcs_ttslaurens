@@ -341,7 +341,9 @@ local function parse_faq_yaml_lookup(yaml_text)
     local indent = #line:match("^(%s*)")
     local card_value = line:match("^%s*card:%s*(.+)%s*$")
     if card_value then
-      -- When we see card:, associate any parsed items with this card immediately
+      -- When we see card:, first finalize any currently-building Q/A item
+      flush_current_item()
+      -- Then associate any parsed items with this card immediately
       pending_card = strip_outer_quotes(card_value)
       if #parsed_items > 0 then
         local key = normalize_card_name(pending_card)
@@ -395,6 +397,20 @@ local function parse_faq_yaml_lookup(yaml_text)
   end
 
   flush_current_item()
+
+
+  -- Attach any remaining parsed_items to the last pending_card (safe fallback)
+  if pending_card and #parsed_items > 0 then
+    local key = normalize_card_name(pending_card)
+    if key ~= "" then
+      if not lookup[key] then lookup[key] = { card = pending_card, entries = {} } end
+      for _, it in ipairs(parsed_items) do
+        table.insert(lookup[key].entries, { q = it.q, a = it.a })
+      end
+    end
+    parsed_items = {}
+  end
+
   return lookup
 end
 
@@ -935,15 +951,20 @@ function print_ambition_estimates()
             
             local per_parts = {}
             for color, pts in pairs(entry.per_player or {}) do 
-                if pts > 0 then
+                local note = ""
+                if breakdown.ambition_notes and breakdown.ambition_notes[ambition_name] and breakdown.ambition_notes[ambition_name][color] then
+                  note = " " .. breakdown.ambition_notes[ambition_name][color]
+                end
+                -- Show if pts > 0, or if there's a note (e.g., Elder demotion to 0)
+                if pts > 0 or note ~= "" then
                     local bonus = 0
                     if breakdown.ambition_bonuses and breakdown.ambition_bonuses[ambition_name] and breakdown.ambition_bonuses[ambition_name][color] then
                         bonus = breakdown.ambition_bonuses[ambition_name][color]
                     end
                     if bonus > 0 then
-                        table.insert(per_parts, color .. ": " .. tostring(pts) .. " (+" .. tostring(bonus) .. " city bonus)") 
+                      table.insert(per_parts, color .. ": " .. tostring(pts) .. " (+" .. tostring(bonus) .. " city bonus)" .. note) 
                     else
-                        table.insert(per_parts, color .. ": " .. tostring(pts)) 
+                      table.insert(per_parts, color .. ": " .. tostring(pts) .. note) 
                     end
                 end
             end
