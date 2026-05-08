@@ -369,6 +369,16 @@ function BaseGame.hide_and_disable_5p_snaps()
         return
     end
 
+    -- If we're running in debug mode, keep the snaps visible and usable
+    -- so developers can inspect and manipulate the 5P helper snaps.
+    local debug_mode = false
+    pcall(function() debug_mode = Global.getVar("debug") end)
+    if debug_mode then
+        snaps_obj.setInvisibleTo({})
+        snaps_obj.interactable = true
+        return
+    end
+
     -- Keep helper snaps hidden and non-interactable for players.
     snaps_obj.setInvisibleTo({"Red", "White", "Yellow", "Teal", "Pink", "Black", "Grey"})
     snaps_obj.setLock(true)
@@ -456,7 +466,16 @@ function BaseGame.setup(with_leaders, with_ll_expansion, with_miniatures)
         pcall(function()
             local snaps_obj = getObjectFromGUID(snaps_5p_GUID)
             if snaps_obj then
-                destroyObject(snaps_obj)
+                local debug_mode = false
+                pcall(function() debug_mode = Global.getVar("debug") end)
+                if debug_mode then
+                    -- In debug mode keep the snaps visible and interactable for inspection
+                    snaps_obj.setInvisibleTo({})
+                    snaps_obj.setLock(false)
+                    snaps_obj.interactable = true
+                else
+                    destroyObject(snaps_obj)
+                end
             end
         end)
     end

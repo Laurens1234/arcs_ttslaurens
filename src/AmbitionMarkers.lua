@@ -249,6 +249,256 @@ function ambitionMarkers:refresh_all_ambitions()
     Global.call("update_player_scores")
 end
 
+
+-- Calculate estimated ambition points for each player based on the currently
+-- declared ambition markers and their flipped states. Returns a table
+-- mapping player color -> estimated points (number).
+function ambitionMarkers:calculate_player_ambition_points()
+    local estimates = {}
+    local active_players = Global.getVar("active_players") or {}
+    for _, p in ipairs(active_players) do estimates[p.color] = 0 end
+
+    local active_ambitions = Global.getVar("active_ambitions") or {}
+    -- mapping from ambition name to ArcsPlayer stat field
+    local stat_map = {
+        Tycoon = "tycoon",
+        Tyrant = "captives",
+        Warlord = "trophies",
+        Keeper = "keeper",
+        Empath = "empath"
+    }
+
+    -- Helper: find index of guid in ambition_marker_GUIDs
+    local function find_marker_index(guid)
+        if not ambition_marker_GUIDs then return nil end
+        for i = 1, #ambition_marker_GUIDs do
+            if ambition_marker_GUIDs[i] == guid then return i end
+        end
+        return nil
+    end
+
+    -- Collect markers by ambition name (a single ambition may have multiple markers; sum their rewards)
+    for guid, ambition_name in pairs(active_ambitions) do
+        if ambition_name and ambition_name ~= "" and stat_map[ambition_name] then
+            local idx = find_marker_index(guid)
+            if not idx then goto continue end
+            local marker_def = markers[idx]
+            if not marker_def then goto continue end
+
+            local obj = getObjectFromGUID(guid)
+            local flipped = false
+            if obj and obj.is_face_down ~= nil then flipped = obj.is_face_down end
+            local power_def = marker_def[flipped] or marker_def[false] or {}
+
+            -- build prize list (1st, 2nd, optional 3rd)
+            local prizes = {}
+            if power_def.first_power then table.insert(prizes, power_def.first_power) end
+            if power_def.second_power then table.insert(prizes, power_def.second_power) end
+            if power_def.third_power then table.insert(prizes, power_def.third_power) end
+
+            -- Build ranking of players for this ambition
+            local stat_field = stat_map[ambition_name]
+            local players = {}
+            for _, p in ipairs(active_players) do
+                -- ensure player's stats have been updated (update_score should be called beforehand)
+                local val = 0
+                pcall(function() val = tonumber(p[stat_field]) or 0 end)
+                -- Qualification: player must have at least 1 of the stat to qualify
+                if val >= 1 then
+                    table.insert(players, { color = p.color, value = val })
+                end
+            end
+            if #players == 0 then goto continue end
+            table.sort(players, function(a, b) return a.value > b.value end)
+
+            -- Assign prizes with tie rules:
+            -- - Players must have >=1 to qualify (already filtered)
+            -- - If multiple players tie for a rank, they each receive the prize
+            --   for one position lower (i.e., tied players go down one spot).
+            local pos = 1
+            while pos <= #players do
+                -- find tie group
+                local tie_val = players[pos].value
+                local tie_group = { players[pos] }
+                local j = pos + 1
+                while j <= #players and players[j].value == tie_val do
+                    table.insert(tie_group, players[j])
+                    j = j + 1
+                end
+
+                -- Determine prize index: if tie group size > 1, they go down one spot
+                local prize_index
+                if #tie_group > 1 then
+                    prize_index = pos + 1
+                else
+                    prize_index = pos
+                end
+                local prize = prizes[prize_index] or 0
+
+                for _, entry in ipairs(tie_group) do
+                    estimates[entry.color] = (estimates[entry.color] or 0) + prize
+                end
+
+                pos = j
+            end
+        end
+        ::continue::
+    end
+
+    return estimates
+end
+
+
+-- Build a detailed breakdown per ambition token and per-player assignment.
+-- Returns a table: { totals = {color->points}, tokens = { { guid=..., ambition=..., prizes={...}, per_player={color->points} } } }
+function ambitionMarkers:build_detailed_estimates()
+    local result = { totals = {}, tokens = {}, ambition_bonuses = {} }
+    local active_players = Global.getVar("active_players") or {}
+    for _, p in ipairs(active_players) do result.totals[p.color] = 0 end
+
+    local active_ambitions = Global.getVar("active_ambitions") or {}
+    local stat_map = {
+        Tycoon = "tycoon",
+        Tyrant = "captives",
+        Warlord = "trophies",
+        Keeper = "keeper",
+        Empath = "empath"
+    }
+
+    local function find_marker_index(guid)
+        if not ambition_marker_GUIDs then return nil end
+        for i = 1, #ambition_marker_GUIDs do if ambition_marker_GUIDs[i] == guid then return i end end
+        return nil
+    end
+
+    -- Track which players won first place (untied) for which ambitions
+    local untied_winners = {}  -- ambition_name -> player_color
+
+    for guid, ambition_name in pairs(active_ambitions) do
+        if ambition_name and ambition_name ~= "" and stat_map[ambition_name] then
+            local idx = find_marker_index(guid)
+            if not idx then goto continue end
+            local marker_def = markers[idx]
+            if not marker_def then goto continue end
+
+            local obj = getObjectFromGUID(guid)
+            local flipped = false
+            if obj and obj.is_face_down ~= nil then flipped = obj.is_face_down end
+            local power_def = marker_def[flipped] or marker_def[false] or {}
+
+            local prizes = {}
+            if power_def.first_power then table.insert(prizes, power_def.first_power) end
+            if power_def.second_power then table.insert(prizes, power_def.second_power) end
+            if power_def.third_power then table.insert(prizes, power_def.third_power) end
+
+            -- build players who qualify
+            local stat_field = stat_map[ambition_name]
+            local players = {}
+            for _, p in ipairs(active_players) do
+                local val = 0
+                pcall(function() val = tonumber(p[stat_field]) or 0 end)
+                if val >= 1 then table.insert(players, { color = p.color, value = val }) end
+            end
+            if #players == 0 then
+                -- record a token with zero impact
+                local per_player = {}
+                for _, p in ipairs(active_players) do per_player[p.color] = 0 end
+                table.insert(result.tokens, { guid = guid, ambition = ambition_name, prizes = prizes, per_player = per_player, flipped = flipped })
+                goto continue
+            end
+            table.sort(players, function(a,b) return a.value > b.value end)
+
+            -- per-player points for this token
+            local per_player = {}
+            for _, p in ipairs(active_players) do per_player[p.color] = 0 end
+
+            local pos = 1
+            while pos <= #players do
+                local tie_val = players[pos].value
+                local tie_group = { players[pos] }
+                local j = pos + 1
+                while j <= #players and players[j].value == tie_val do
+                    table.insert(tie_group, players[j])
+                    j = j + 1
+                end
+
+                local prize_index = (#tie_group > 1) and (pos + 1) or pos
+                local prize = prizes[prize_index] or 0
+                for _, entry in ipairs(tie_group) do
+                    per_player[entry.color] = (per_player[entry.color] or 0) + prize
+                    result.totals[entry.color] = (result.totals[entry.color] or 0) + prize
+                end
+
+                -- Track untied first place winners
+                if pos == 1 and #tie_group == 1 then
+                    untied_winners[ambition_name] = tie_group[1].color
+                end
+
+                pos = j
+            end
+
+            table.insert(result.tokens, { guid = guid, ambition = ambition_name, prizes = prizes, per_player = per_player, flipped = flipped })
+        end
+        ::continue::
+    end
+
+    -- Apply loyal city bonuses for untied first place winners
+    for ambition_name, winner_color in pairs(untied_winners) do
+        local winner_player = nil
+        for _, p in ipairs(active_players) do
+            if p.color == winner_color then
+                winner_player = p
+                break
+            end
+        end
+
+        if winner_player then
+            -- Get the player's area zone
+            local area_zone_guid = nil
+            pcall(function()
+                if player_pieces_GUIDs and player_pieces_GUIDs[winner_color] then
+                    area_zone_guid = player_pieces_GUIDs[winner_color].area_zone
+                end
+            end)
+
+            if area_zone_guid then
+                local area_zone = getObjectFromGUID(area_zone_guid)
+                if area_zone and area_zone.getObjects then
+                    local zone_objects = area_zone.getObjects()
+                    local loyal_city_count = 0
+                    
+                    -- Count loyal cities (objects with "City" in name or with City tag)
+                    for _, obj in ipairs(zone_objects) do
+                        local obj_name = ""
+                        pcall(function() obj_name = obj.getName() or "" end)
+                        if string.find(obj_name, "City") or (obj.hasTag and obj.hasTag("City")) then
+                            loyal_city_count = loyal_city_count + 1
+                        end
+                    end
+
+                    -- Apply bonus
+                    local bonus = 0
+                    if loyal_city_count == 0 then
+                        bonus = 5
+                    elseif loyal_city_count == 1 then
+                        bonus = 2
+                    end
+
+                    if bonus > 0 then
+                        result.totals[winner_color] = (result.totals[winner_color] or 0) + bonus
+                        if not result.ambition_bonuses[ambition_name] then
+                            result.ambition_bonuses[ambition_name] = {}
+                        end
+                        result.ambition_bonuses[ambition_name][winner_color] = bonus
+                    end
+                end
+            end
+        end
+    end
+
+    return result
+end
+
 function ambitionMarkers:add_button()
     local zero_marker = getObjectFromGUID(zero_marker_GUID)
     -- If the zero marker object isn't present yet (load order), retry shortly

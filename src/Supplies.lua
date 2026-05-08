@@ -281,11 +281,11 @@ function SupplyManager.returnObject(object, is_bottom_deck, returning_player_col
                         pos)
                 -- If this is a City being returned to its supply, lower it in Z
                 local ok_name, nm = pcall(function() return object.getName() end)
-                if ok_name and nm and string.find(nm, "City") then
-                    pcall(function()
-                        if pos.z then pos.z = pos.z - 1.64 end
-                    end)
-                end
+                -- if ok_name and nm and string.find(nm, "City") then
+                --     pcall(function()
+                --         if pos.z then pos.z = pos.z - 1.64 end
+                --     end)
+                -- end
                 object.setPositionSmooth(pos, false, true)
                 -- Broadcast to all players that the city was returned and instruct placement
                 if ok_name and nm and string.find(nm, "City") then

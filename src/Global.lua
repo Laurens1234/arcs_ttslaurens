@@ -127,13 +127,13 @@ draw_bottom_patched = {}
 errata_menu_patched = {}
 
 local ERRATA_URL = "https://raw.githubusercontent.com/buriedgiantstudios/cards/refs/heads/master/content/errata/arcs/en-US.yml"
-local ERRATA_CACHE_SECONDS = 300
+local ERRATA_CACHE_SECONDS = 86400
 local errata_cache_lookup = nil
 local errata_cache_time = 0
 local errata_fetch_in_flight = false
 local errata_pending_callbacks = {}
 local FAQ_URL = "https://raw.githubusercontent.com/buriedgiantstudios/cards/refs/heads/master/content/faq/arcs/en-US.yml"
-local FAQ_CACHE_SECONDS = 300
+local FAQ_CACHE_SECONDS = 86400
 local faq_cache_lookup = nil
 local faq_cache_time = 0
 local faq_fetch_in_flight = false
@@ -851,7 +851,173 @@ function update_player_scores()
     for _, p in ipairs(active_players) do
         p:update_score()
     end
+    -- After updating player score widgets, compute detailed ambition point estimates
+    -- (stored in Global but NOT automatically broadcast; use context menu on markers to show)
+    local ok, breakdown = pcall(function()
+        local AmbitionMarkers = AmbitionMarkers
+        if AmbitionMarkers and AmbitionMarkers.build_detailed_estimates then
+            return AmbitionMarkers:build_detailed_estimates()
+        end
+        return nil
+    end)
+    if ok and breakdown then
+        Global.setVar("ambition_point_estimates_detailed", breakdown)
+    end
 end
+
+-- Print a detailed ambition estimates breakdown to chat.
+function print_ambition_estimates()
+    -- ensure player scores are up-to-date
+    Global.call("update_player_scores")
+    local breakdown = Global.getVar("ambition_point_estimates_detailed")
+
+    if not breakdown then
+        broadcastToAll("Could not compute ambition estimates", {1, 0.4, 0.4})
+        return
+    end
+
+    -- Title
+    broadcastToAll("=== Ambition Power Gain ===", {0.35, 0.7, 1})
+    
+    -- Totals line
+    local total_parts = {}
+    for color, pts in pairs(breakdown.totals or {}) do table.insert(total_parts, color .. ": " .. tostring(pts)) end
+    if #total_parts > 0 then
+        broadcastToAll("TOTALS: " .. table.concat(total_parts, " | "), {0.6, 1, 0.6})
+    else
+        broadcastToAll("No Ambition points projected.", {0.8, 0.8, 0.8})
+        return
+    end
+    
+    broadcastToAll(" ", {0.9, 0.9, 0.9})
+
+    -- Group tokens by ambition name
+    local grouped = {}
+    for _, token in ipairs(breakdown.tokens or {}) do
+        local ambition_name = token.ambition or ""
+        if not grouped[ambition_name] then
+            grouped[ambition_name] = {
+                prize_sets = {},  -- list of prize arrays from each marker
+                per_player = {}
+            }
+        end
+        -- Collect all prize sets
+        if #(token.prizes or {}) > 0 then
+            table.insert(grouped[ambition_name].prize_sets, token.prizes)
+        end
+        -- Sum per-player points
+        for color, pts in pairs(token.per_player or {}) do
+            grouped[ambition_name].per_player[color] = (grouped[ambition_name].per_player[color] or 0) + pts
+        end
+    end
+
+    -- Output grouped by ambition in order
+    local ambition_order = {"Tycoon", "Tyrant", "Warlord", "Keeper", "Empath"}
+    local count = 0
+    for _, ambition_name in ipairs(ambition_order) do
+        if grouped[ambition_name] then
+            count = count + 1
+            local entry = grouped[ambition_name]
+            
+            -- Format all prize sets with " + " between them
+            local prize_sets_str = {}
+            for _, prize_set in ipairs(entry.prize_sets or {}) do
+                local prize_txt = "[" .. table.concat((function()
+                    local t = {}
+                    for i = 1, #(prize_set or {}) do table.insert(t, tostring(prize_set[i])) end
+                    return t
+                end)(), " / ") .. "]"
+                table.insert(prize_sets_str, prize_txt)
+            end
+            local all_prizes_txt = table.concat(prize_sets_str, " + ")
+            
+            broadcastToAll(ambition_name .. ": " .. all_prizes_txt, {0.45, 0.8, 1})
+            
+            local per_parts = {}
+            for color, pts in pairs(entry.per_player or {}) do 
+                if pts > 0 then
+                    local bonus = 0
+                    if breakdown.ambition_bonuses and breakdown.ambition_bonuses[ambition_name] and breakdown.ambition_bonuses[ambition_name][color] then
+                        bonus = breakdown.ambition_bonuses[ambition_name][color]
+                    end
+                    if bonus > 0 then
+                        table.insert(per_parts, color .. ": " .. tostring(pts) .. " (+" .. tostring(bonus) .. " city bonus)") 
+                    else
+                        table.insert(per_parts, color .. ": " .. tostring(pts)) 
+                    end
+                end
+            end
+            if #per_parts > 0 then
+                broadcastToAll("  → " .. table.concat(per_parts, " | "), {0.6, 1, 0.6})
+            else
+                broadcastToAll("  → (no qualifiers)", {0.8, 0.8, 0.8})
+            end
+            
+            broadcastToAll(" ", {0.9, 0.9, 0.9})
+        end
+    end
+end
+
+-- Callback function for ambition marker context menu
+function show_ambition_scores_menu(player_color, position, clicked_object)
+    Global.call("print_ambition_estimates")
+end
+
+-- Attach context menu items to all ambition markers.
+function attach_ambition_marker_menus()
+    if not ambition_marker_GUIDs or #ambition_marker_GUIDs == 0 then
+        print("[DEBUG] attach_ambition_marker_menus: ambition_marker_GUIDs is empty or nil")
+        return
+    end
+    
+    local function try_attach(attempt)
+        attempt = attempt or 1
+        local attached_count = 0
+        local markers_found = 0
+        
+        for i = 1, #ambition_marker_GUIDs do
+            local guid = ambition_marker_GUIDs[i]
+            local marker = getObjectFromGUID(guid)
+            if marker then
+                markers_found = markers_found + 1
+                local ok, err = pcall(function()
+                    marker.addContextMenuItem("Show Ambition Scores", show_ambition_scores_menu)
+                end)
+                if ok then
+                    attached_count = attached_count + 1
+                else
+                    print("[DEBUG] Failed to attach menu to marker " .. guid .. ": " .. tostring(err))
+                end
+            end
+        end
+        
+        -- Also attach to chapter pawn
+        local chapter_pawn = getObjectFromGUID(chapter_pawn_GUID)
+        if chapter_pawn then
+            markers_found = markers_found + 1
+            local ok, err = pcall(function()
+                chapter_pawn.addContextMenuItem("Show Ambition Scores", show_ambition_scores_menu)
+            end)
+            if ok then
+                attached_count = attached_count + 1
+            else
+                print("[DEBUG] Failed to attach menu to chapter pawn: " .. tostring(err))
+            end
+        end
+        
+        LOG.DEBUG("attempt " .. attempt .. "] Found " .. markers_found .. " objects, attached to " .. attached_count)
+        
+        -- If we didn't find all markers, retry in a moment
+        if markers_found < (#ambition_marker_GUIDs + 1) and attempt < 5 then
+            Wait.time(function()
+                try_attach(attempt + 1)
+            end, 0.5)
+        end
+    end
+    
+    try_attach(1)
+end
+
 
 function isObjectInZone(object, zone)
     if not object or not zone then return false end
@@ -2464,6 +2630,9 @@ function setup_custom_game()
         end
       end
     end)
+
+    -- Attach context menus to ambition markers for new custom game setups
+    pcall(function() attach_ambition_marker_menus() end)
 end
 
 ----------------------------------------------------
@@ -2567,6 +2736,9 @@ function onLoad(script_state)
 
     -- Ensure zero marker ambition button exists at startup
     pcall(function() AmbitionMarkers.add_button() end)
+
+    -- Attach context menus to ambition markers and chapter pawn (always available)
+    pcall(function() attach_ambition_marker_menus() end)
 
     -- start periodic scan to ensure Draw-bottom is attached to any new decks
     schedule_scan()
