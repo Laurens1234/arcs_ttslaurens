@@ -963,6 +963,217 @@ function show_ambition_scores_menu(player_color, position, clicked_object)
     Global.call("print_ambition_estimates")
 end
 
+-- Reset/reseed ambition markers:
+-- 1) Return all markers to their base slots,
+-- 2) Flip the marker with the lowest current first-power,
+-- 3) Move the top 3 markers by first-power to staging positions.
+function reset_ambition_markers_menu(player_color, position, clicked_object)
+  local reach_map = getObjectFromGUID(reach_board_GUID)
+  if not reach_map then
+    broadcastToColor("Could not reset ambition markers: reach board not found.", player_color or "White", {1, 0.4, 0.4})
+    return
+  end
+
+  if not ambition_marker_GUIDs or #ambition_marker_GUIDs == 0 then
+    broadcastToColor("Could not reset ambition markers: marker GUID list is empty.", player_color or "White", {1, 0.4, 0.4})
+    return
+  end
+
+  local base_slots = {
+    [1] = Vector({-0.83, 0.2, -1.07}),
+    [2] = Vector({-0.92, 0.2, -1.07}),
+    [3] = Vector({-1.00, 0.21, -1.07}),
+    [4] = Vector({-0.83, 0.2, -1.07}),
+    [5] = Vector({-0.92, 0.2, -1.07}),
+    [6] = Vector({-1.00, 0.21, -1.07})
+  }
+
+  local first_power_by_index = {
+    [1] = { [false] = 5, [true] = 9 },
+    [2] = { [false] = 3, [true] = 6 },
+    [3] = { [false] = 2, [true] = 4 },
+    [4] = { [false] = 10, [true] = 6 },
+    [5] = { [false] = 7, [true] = 4 },
+    [6] = { [false] = 3, [true] = 5 }
+  }
+
+  local staging_positions = {
+    Vector({16.28, 1.08, 5.81}),
+    Vector({17.61, 1.08, 5.81}),
+    Vector({18.94, 1.08, 5.82})
+  }
+
+  local function marker_first_power(idx, obj)
+    local face = false
+    if obj and obj.is_face_down ~= nil then face = obj.is_face_down end
+    local by_face = first_power_by_index[idx] or {}
+    return by_face[face] or 0
+  end
+
+  local function marker_first_power_with_face(idx, face_down)
+    local by_face = first_power_by_index[idx] or {}
+    return by_face[face_down] or 0
+  end
+
+  local marker_entries = {}
+
+  -- Choose which trio to seed based on active player count:
+  -- <5 players => first 3 marker GUIDs, >=5 players => last 3 marker GUIDs.
+  local active_count = 0
+  if type(active_players) == "table" then
+    active_count = #active_players
+  end
+  if active_count == 0 then
+    active_count = #getSeatedPlayers()
+  end
+
+  local selected = {}
+  local want_low = (active_count >= 5) and 4 or 1
+  local want_high = (active_count >= 5) and 6 or 3
+  -- Only use the selected trio for this player count.
+  for i = want_low, want_high do
+    local guid = ambition_marker_GUIDs[i]
+    local obj = guid and getObjectFromGUID(guid) or nil
+    if obj and obj.getPosition then
+      -- Return selected marker to its base slot first.
+      local slot_local = base_slots[i] or base_slots[1]
+      local world = reach_map.positionToWorld(slot_local)
+      world.y = world.y + 0.45
+      obj.setPositionSmooth(world)
+      local entry = { idx = i, guid = guid, obj = obj }
+      table.insert(marker_entries, entry)
+      table.insert(selected, entry)
+    end
+  end
+
+  if #selected == 0 then
+    broadcastToColor("No selected ambition markers found for this player count.", player_color or "White", {1, 0.4, 0.4})
+    return
+  end
+
+  -- Flip the lowest-power marker, but only if it is not already flipped.
+  local lowest = nil
+  for _, entry in ipairs(selected) do
+    local is_flipped = (entry.obj and entry.obj.is_face_down == true)
+    if not is_flipped then
+      local p = marker_first_power(entry.idx, entry.obj)
+      if not lowest or p < lowest.power then
+        lowest = { entry = entry, power = p }
+      end
+    end
+  end
+  local flipped_guid = nil
+  if lowest and lowest.entry and lowest.entry.obj and lowest.entry.obj.flip then
+    pcall(function() lowest.entry.obj.flip() end)
+    flipped_guid = lowest.entry.guid
+  end
+
+  -- Re-rank selected trio based on POST-FLIP values (deterministic; doesn't depend on flip timing).
+  local projected_power = {}
+  for _, entry in ipairs(selected) do
+    local face = false
+    if entry.obj and entry.obj.is_face_down ~= nil then face = entry.obj.is_face_down end
+    if flipped_guid and flipped_guid == entry.guid then
+      face = not face
+    end
+    projected_power[entry.guid] = marker_first_power_with_face(entry.idx, face)
+  end
+
+  table.sort(selected, function(a, b)
+    local pa = projected_power[a.guid] or 0
+    local pb = projected_power[b.guid] or 0
+    if pa == pb then
+      return a.idx < b.idx
+    end
+    return pa > pb
+  end)
+
+  for i = 1, math.min(3, #selected) do
+    local entry = selected[i]
+    local target = staging_positions[i]
+    if entry and entry.obj and target then
+      entry.obj.setPositionSmooth(target)
+    end
+  end
+
+  -- Also move chapter pawn to the right when resetting ambition markers.
+  -- If pawn is high (y > 1.1), use a smaller shift to align with snaps.
+  local chapter_pawn = getObjectFromGUID(chapter_pawn_GUID)
+  if chapter_pawn and chapter_pawn.getPosition then
+    local cp = chapter_pawn.getPosition()
+    local chapter_shift = (cp.y and cp.y > 1.1) and 0.83333 or 0.9075
+    cp.x = cp.x + chapter_shift
+    chapter_pawn.use_snap_points = true
+    chapter_pawn.setPositionSmooth(cp, false, true)
+  end
+
+  pcall(function() AmbitionMarkers.refresh_all_ambitions() end)
+  broadcastToAll("Ambition markers reset and re-seeded.", {0.6, 1, 0.6})
+end
+
+-- Compute ambition gains and move each player's power cube to the right by total gain.
+function apply_ambition_scores_to_power_menu(player_color, position, clicked_object)
+  Global.call("update_player_scores")
+  local breakdown = Global.getVar("ambition_point_estimates_detailed")
+  if not breakdown or not breakdown.totals then
+    broadcastToColor("Could not compute ambition scores.", player_color or "White", {1, 0.4, 0.4})
+    return
+  end
+
+  local moved_parts = {}
+  local power_step = 0.655
+  local power_zero_x = -13.26
+  local power_cubes = getObjectsWithTag("power") or {}
+  local function power_from_x(x)
+    local p = math.floor(((x - power_zero_x) / power_step) + 0.0001)
+    if p < 0 then p = 0 end
+    return p
+  end
+  local function snap_power_x(x)
+    local steps = (x - power_zero_x) / power_step
+    local snapped_steps = math.floor(steps + 0.5)
+    return power_zero_x + (snapped_steps * power_step)
+  end
+
+  for color, gain in pairs(breakdown.totals) do
+    local delta = tonumber(gain) or 0
+    if delta ~= 0 then
+      local cube = nil
+      local color_tag = tostring(color) .. "Piece"
+      for _, obj in ipairs(power_cubes) do
+        if obj and obj.hasTag and obj.hasTag(color_tag) then
+          cube = obj
+          break
+        end
+      end
+
+      if cube and cube.getPosition then
+        local pos = cube.getPosition()
+        local start_power = power_from_x(pos.x)
+        -- Clamp from below: any position left of zero counts as zero for movement.
+        local start_x = pos.x
+        if start_x < power_zero_x then start_x = power_zero_x end
+        pos.x = snap_power_x(start_x + (delta * power_step))
+        local end_power = power_from_x(pos.x)
+        cube.setPosition(pos)
+        table.insert(moved_parts, tostring(color) .. ": " .. tostring(start_power) .. " -> " .. tostring(end_power) .. " (+" .. tostring(delta) .. ")")
+      else
+        table.insert(moved_parts, tostring(color) .. ": no power cube found")
+      end
+    end
+  end
+
+  if #moved_parts > 0 then
+    broadcastToAll("Applied ambition power gain -> " .. table.concat(moved_parts, " | "), {0.6, 1, 0.6})
+  else
+    broadcastToAll("No ambition power gain to apply.", {0.8, 0.8, 0.8})
+  end
+
+  Wait.time(function()
+    Global.call("update_player_scores")
+  end, 0.2)
+end
+
 -- Attach context menu items to all ambition markers.
 function attach_ambition_marker_menus()
     if not ambition_marker_GUIDs or #ambition_marker_GUIDs == 0 then
@@ -982,6 +1193,8 @@ function attach_ambition_marker_menus()
                 markers_found = markers_found + 1
                 local ok, err = pcall(function()
                     marker.addContextMenuItem("Show Ambition Scores", show_ambition_scores_menu)
+                marker.addContextMenuItem("Score Ambitions", apply_ambition_scores_to_power_menu)
+                marker.addContextMenuItem("Reset Markers", reset_ambition_markers_menu)
                 end)
                 if ok then
                     attached_count = attached_count + 1
@@ -997,6 +1210,8 @@ function attach_ambition_marker_menus()
             markers_found = markers_found + 1
             local ok, err = pcall(function()
                 chapter_pawn.addContextMenuItem("Show Ambition Scores", show_ambition_scores_menu)
+          chapter_pawn.addContextMenuItem("Score Ambitions", apply_ambition_scores_to_power_menu)
+          chapter_pawn.addContextMenuItem("Reset Markers", reset_ambition_markers_menu)
             end)
             if ok then
                 attached_count = attached_count + 1
