@@ -810,18 +810,34 @@ function ambitionMarkers:undo()
     local zero_marker = getObjectFromGUID(zero_marker_GUID)
     zero_marker.setPositionSmooth(reach_board.positionToWorld({0.94, 0.2, 1.09}))
     zero_marker.setRotationSmooth({0.00, 180.00, 0.00})
+    ambitionMarkers.display_declare_button()
 
-     ambitionMarkers.display_declare_button()
+    -- Immediately mark this marker as undeclared in Global state (safe via Global.call)
+    pcall(function()
+        local ok, guid = pcall(function() return last_declared_marker.object.getGUID() end)
+        if ok and guid then
+            pcall(function() Global.call('ambition_set_marker_undeclared', guid) end)
+        end
+    end)
+
+    -- Refresh ambitions after undo movements settle (run in Global context)
+    Wait.time(function()
+        pcall(function() Global.call('ambition_refresh_proxy') end)
+    end, 1.0)
 end
 
 function ambitionMarkers:reset_zero_marker()
     last_declared_marker = nil
-     ambitionMarkers.display_declare_button()
+    ambitionMarkers.display_declare_button()
 
     local zero_marker = getObjectFromGUID(zero_marker_GUID)
     local reach_board = getObjectFromGUID(reach_board_GUID)
     zero_marker.setPositionSmooth(reach_board.positionToWorld({0.94, 0.2, 1.09}))
     zero_marker.setRotationSmooth({0.00, 180.00, 0.00})
+    -- Ensure global ambitions reflect reset position after move completes
+    Wait.time(function()
+        pcall(function() Global.call('ambition_refresh_proxy') end)
+    end, 0.8)
 end
 
 function ambitionMarkers:highest_undeclared()
@@ -919,6 +935,12 @@ function declare_ambition(obj, player_color)
     zero_marker.setRotationSmooth({0.00, 90.00, 0.00})
 
     ambitionMarkers.display_undo_button()
+
+    -- After moving markers/zero marker via script, refresh ambitions
+    -- after a short delay so smooth movements have settled.
+    Wait.time(function()
+        pcall(function() Global.call('ambition_refresh_proxy') end)
+    end, 0.8)
 end
 function undo_ambition(obj, player_color)
     ambitionMarkers.undo(obj)

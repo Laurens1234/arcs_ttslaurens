@@ -849,6 +849,25 @@ local function generate_game_id()
     return string.format("%X", seed)
 end
 
+-- Proxy to refresh ambitions from other script contexts.
+-- Some object scripts cannot safely call Global-setter operations
+-- directly, so call this function via `Global.call('ambition_refresh_proxy')`.
+function ambition_refresh_proxy()
+  pcall(function() AmbitionMarkers.refresh_all_ambitions() end)
+end
+
+-- Mark a specific ambition marker GUID as undeclared in the global ambitions map.
+-- Called via `Global.call('ambition_set_marker_undeclared', guid)` from other scripts.
+function ambition_set_marker_undeclared(guid)
+  if not guid then return end
+  pcall(function()
+    local active = Global.getVar('active_ambitions') or {}
+    active[guid] = ""
+    Global.setVar('active_ambitions', active)
+    pcall(function() Global.call('update_player_scores') end)
+  end)
+end
+
 function assignPlayerToAvailableColor(player, color)
     local color = table.remove(available_colors, 1)
     broadcastToAll("\nAssigning " .. player.steam_name .. " to color " .. color)
@@ -895,14 +914,24 @@ function print_ambition_estimates()
     -- Title
     broadcastToAll("=== Ambition Power Gain ===", {0.35, 0.7, 1})
     
-    -- Totals line
+    -- Totals line: show gain and projected total (current + gain)
     local total_parts = {}
-    for color, pts in pairs(breakdown.totals or {}) do table.insert(total_parts, color .. ": " .. tostring(pts)) end
+    for color, pts in pairs(breakdown.totals or {}) do
+      local gain = tonumber(pts) or 0
+      -- get current power from ArcsPlayer instance if available
+      local current = 0
+      local ap = get_arcs_player(color)
+      if ap and ap.power ~= nil then
+        current = ap.power
+      end
+      local projected = current + gain
+      table.insert(total_parts, color .. ": " .. tostring(gain) .. " (" .. tostring(current) .. " -> " .. tostring(projected) .. ")")
+    end
     if #total_parts > 0 then
-        broadcastToAll("TOTALS: " .. table.concat(total_parts, " | "), {0.6, 1, 0.6})
+      broadcastToAll("TOTALS: " .. table.concat(total_parts, " | "), {0.6, 1, 0.6})
     else
-        broadcastToAll("No Ambition points projected.", {0.8, 0.8, 0.8})
-        return
+      broadcastToAll("No Ambition points projected.", {0.8, 0.8, 0.8})
+      return
     end
     
     broadcastToAll(" ", {0.9, 0.9, 0.9})
