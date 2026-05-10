@@ -920,8 +920,46 @@ function declare_ambition(obj, player_color)
             player_color)
     else
         this_ambition = ambitions[lead_info.real_number]
-        local pos = high_marker.column_pos + this_ambition.row_pos;
-        pos = reach_board.positionToWorld(pos)
+        
+        -- Smart column selection: try middle first, then right, then left
+        -- Only place in a column if it's empty at that ambition row
+        -- World x-coordinates for columns: middle 17.64, right 18.97, left 16.16
+        local function count_markers_at_ambition_row(target_x, target_z)
+            local count = 0
+            for _, m in ipairs(markers) do
+                if m.object and m.object.getPosition then
+                    local obj_pos = m.object.getPosition()
+                    -- Check if marker is at this x column and approximately this z row
+                    if math.abs(obj_pos.x - target_x) < 0.1 and math.abs(obj_pos.z - target_z) < 0.2 then
+                        count = count + 1
+                    end
+                end
+            end
+            return count
+        end
+        
+        -- Calculate the target z position for this ambition
+        local target_pos = reach_board.positionToWorld(high_marker.column_pos + this_ambition.row_pos)
+        local target_z = target_pos.z
+        
+        -- Check columns in priority order: middle, right, left
+        local selected_column_x = 17.64  -- default to middle
+        
+        local middle_count = count_markers_at_ambition_row(17.64, target_z)
+        if middle_count == 0 then
+            selected_column_x = 17.64  -- middle is empty, use it
+        else
+            local right_count = count_markers_at_ambition_row(18.97, target_z)
+            if right_count == 0 then
+                selected_column_x = 18.97  -- middle is full, right is empty, use right
+            else
+                selected_column_x = 16.16  -- both middle and right full, use left
+            end
+        end
+        
+        -- Build position using the selected column and the ambition row
+        local pos = reach_board.positionToWorld(high_marker.column_pos + this_ambition.row_pos)
+        pos.x = selected_column_x
         pos.y = pos.y + 0.3
         high_marker.object.setPositionSmooth(pos)
         broadcastToAll("" .. player_color .. " has declared " ..
