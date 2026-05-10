@@ -245,8 +245,11 @@ function ambitionMarkers:refresh_all_ambitions()
         end
     end
 
-    Global.setVar("active_ambitions", global_ambitions)
-    Global.call("update_player_scores")
+
+    Wait.time(function()
+        Global.setVar("active_ambitions", global_ambitions)
+        Global.call("update_player_scores")
+    end, 1)
 end
 
 
@@ -603,9 +606,13 @@ function ambitionMarkers:build_detailed_estimates()
             end
 
                 -- Apply card-based ambition demotions
-                apply_ambition_card_demotion("Tyrant", "Elder", per_player, result, prizes, untied_winners, active_players)
-                apply_ambition_card_demotion("Tycoon", "Archivist", per_player, result, prizes, untied_winners, active_players)
-                apply_ambition_card_demotion("Empath", "Warrior", per_player, result, prizes, untied_winners, active_players)
+                if ambition_name == "Tyrant" then
+                    apply_ambition_card_demotion("Tyrant", "Elder", per_player, result, prizes, untied_winners, active_players)
+                elseif ambition_name == "Tycoon" then
+                    apply_ambition_card_demotion("Tycoon", "Archivist", per_player, result, prizes, untied_winners, active_players)
+                elseif ambition_name == "Empath" then
+                    apply_ambition_card_demotion("Empath", "Warrior", per_player, result, prizes, untied_winners, active_players)
+                end
                 apply_ambition_card_demotion(ambition_name, "VOW OF SURVIVAL", per_player, result, prizes, untied_winners, active_players)
 
                 -- Apply card-based ambition blocks (set to 0)

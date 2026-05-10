@@ -900,6 +900,25 @@ function update_player_scores()
     end
 end
 
+-- Helper function to convert player color name to RGB
+local function color_name_to_rgb(color_name)
+    local color_map = {
+    White = {1, 1, 1},
+    Brown = {0.443, 0.231, 0.09},
+    Red = {0.856, 0.1, 0.094},
+    Orange = {0.956, 0.392, 0.113},
+    Yellow = {0.905, 0.898, 0.172},
+    Green = {0.192, 0.701, 0.168},
+    Teal = {0.129, 0.694, 0.607},
+    Blue = {0.118, 0.53, 1},
+    Purple = {0.627, 0.125, 0.941},
+    Pink = {0.96, 0.439, 0.807},
+    Grey = {0.5, 0.5, 0.5},
+    Black = {0.25, 0.25, 0.25}
+    }
+  return color_map[color_name] or {0.6, 1, 0.6}
+end
+
 -- Print a detailed ambition estimates breakdown to chat.
 function print_ambition_estimates()
     -- ensure player scores are up-to-date
@@ -914,7 +933,7 @@ function print_ambition_estimates()
     -- Title
     broadcastToAll("=== Ambition Power Gain ===", {0.35, 0.7, 1})
     
-    -- Totals line: show gain and projected total (current + gain)
+    -- Totals: show gain and projected total (current + gain)
     local total_parts = {}
     for color, pts in pairs(breakdown.totals or {}) do
       local gain = tonumber(pts) or 0
@@ -925,10 +944,14 @@ function print_ambition_estimates()
         current = ap.power
       end
       local projected = current + gain
-      table.insert(total_parts, color .. ": " .. tostring(gain) .. " (" .. tostring(current) .. " -> " .. tostring(projected) .. ")")
+      table.insert(total_parts, { color = color, gain = gain, current = current, projected = projected })
     end
     if #total_parts > 0 then
-      broadcastToAll("TOTALS: " .. table.concat(total_parts, " | "), {0.6, 1, 0.6})
+      broadcastToAll("TOTALS:", {0.6, 1, 0.6})
+      for _, entry in ipairs(total_parts) do
+        local player_color_rgb = color_name_to_rgb(entry.color)
+        broadcastToAll("  " .. entry.color .. ": " .. tostring(entry.gain) .. " (" .. tostring(entry.current) .. " → " .. tostring(entry.projected) .. ")", player_color_rgb)
+      end
     else
       broadcastToAll("No Ambition points projected.", {0.8, 0.8, 0.8})
       return
@@ -964,43 +987,42 @@ function print_ambition_estimates()
             count = count + 1
             local entry = grouped[ambition_name]
             
-            -- Format all prize sets with " + " between them
-            local prize_sets_str = {}
-            for _, prize_set in ipairs(entry.prize_sets or {}) do
-                local prize_txt = "[" .. table.concat((function()
-                    local t = {}
-                    for i = 1, #(prize_set or {}) do table.insert(t, tostring(prize_set[i])) end
-                    return t
-                end)(), " / ") .. "]"
-                table.insert(prize_sets_str, prize_txt)
-            end
-            local all_prizes_txt = table.concat(prize_sets_str, " + ")
+            broadcastToAll(ambition_name .. ":", {0.45, 0.8, 1})
             
-            broadcastToAll(ambition_name .. ": " .. all_prizes_txt, {0.45, 0.8, 1})
-            
-            local per_parts = {}
+            -- Sort players by their points in descending order
+            local player_scores = {}
             for color, pts in pairs(entry.per_player or {}) do 
-                local note = ""
-                if breakdown.ambition_notes and breakdown.ambition_notes[ambition_name] and breakdown.ambition_notes[ambition_name][color] then
-                  note = " " .. breakdown.ambition_notes[ambition_name][color]
-                end
-                -- Show if pts > 0, or if there's a note (e.g., Elder demotion to 0)
-                if pts > 0 or note ~= "" then
-                    local bonus = 0
-                    if breakdown.ambition_bonuses and breakdown.ambition_bonuses[ambition_name] and breakdown.ambition_bonuses[ambition_name][color] then
-                        bonus = breakdown.ambition_bonuses[ambition_name][color]
-                    end
-                    if bonus > 0 then
-                      table.insert(per_parts, color .. ": " .. tostring(pts) .. " (+" .. tostring(bonus) .. " city bonus)" .. note) 
-                    else
-                      table.insert(per_parts, color .. ": " .. tostring(pts) .. note) 
-                    end
-                end
+                table.insert(player_scores, { color = color, points = pts, ambition = ambition_name })
             end
-            if #per_parts > 0 then
-                broadcastToAll("  → " .. table.concat(per_parts, " | "), {0.6, 1, 0.6})
-            else
-                broadcastToAll("  → (no qualifiers)", {0.8, 0.8, 0.8})
+            table.sort(player_scores, function(a, b) return a.points > b.points end)
+            
+            -- Display results by place
+            local place_labels = {[1] = "1st", [2] = "2nd", [3] = "3rd"}
+            for place, entry_data in ipairs(player_scores) do
+                local color = entry_data.color
+                local pts = entry_data.points
+
+              local note = ""
+              if breakdown.ambition_notes and breakdown.ambition_notes[ambition_name] and breakdown.ambition_notes[ambition_name][color] then
+                note = " " .. breakdown.ambition_notes[ambition_name][color]
+              end
+
+              -- Show 0-point entries only when they have an explanation (for example, demoted or blocked leaders)
+              if pts > 0 or note ~= "" then
+                local bonus = 0
+                if breakdown.ambition_bonuses and breakdown.ambition_bonuses[ambition_name] and breakdown.ambition_bonuses[ambition_name][color] then
+                  bonus = breakdown.ambition_bonuses[ambition_name][color]
+                end
+
+                local place_label = place_labels[place] or place .. "th"
+                local bonus_text = ""
+                if bonus > 0 then
+                  bonus_text = " (+" .. tostring(bonus) .. " city bonus)"
+                end
+
+                local player_color_rgb = color_name_to_rgb(color)
+                broadcastToAll("  " .. place_label .. ": " .. color .. " → " .. tostring(pts) .. bonus_text .. note, player_color_rgb)
+              end
             end
             
             broadcastToAll(" ", {0.9, 0.9, 0.9})
@@ -1157,7 +1179,10 @@ function reset_ambition_markers_menu(player_color, position, clicked_object)
     chapter_pawn.setPositionSmooth(cp, false, true)
   end
 
-  pcall(function() AmbitionMarkers.refresh_all_ambitions() end)
+  Wait.time(function()
+    pcall(function() AmbitionMarkers.refresh_all_ambitions() end)
+  end, 0.8)
+
   broadcastToAll("Ambition markers reset and re-seeded.", {0.6, 1, 0.6})
 end
 
