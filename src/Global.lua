@@ -1195,6 +1195,10 @@ function apply_ambition_scores_to_power_menu(player_color, position, clicked_obj
     return
   end
 
+  pcall(function()
+    Global.call("print_ambition_estimates")
+  end)
+
   local moved_parts = {}
   local power_step = 0.655
   local power_zero_x = -13.26
@@ -1238,15 +1242,9 @@ function apply_ambition_scores_to_power_menu(player_color, position, clicked_obj
     end
   end
 
-  if #moved_parts > 0 then
-    broadcastToAll("Applied ambition power gain -> " .. table.concat(moved_parts, " | "), {0.6, 1, 0.6})
-  else
+  if #moved_parts == 0 then
     broadcastToAll("No ambition power gain to apply.", {0.8, 0.8, 0.8})
   end
-
-  Wait.time(function()
-    Global.call("update_player_scores")
-  end, 0.2)
 end
 
 -- Attach context menu items to all ambition markers.
