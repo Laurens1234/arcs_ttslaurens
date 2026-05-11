@@ -50,11 +50,6 @@ local function get_sheets_player_roster()
         return roster
     end
 
-    local ok_ordered, ordered = pcall(function() return Global.call("getOrderedPlayers", {true}) end)
-    if ok_ordered and ordered and type(ordered) == "table" and #ordered > 0 then
-        return ordered
-    end
-
     pcall(function()
         roster = Global.getVar("active_players")
     end)
@@ -67,6 +62,11 @@ local function get_sheets_player_roster()
     end)
     if type(roster) == "table" and #roster > 0 then
         return roster
+    end
+
+    local ok_ordered, ordered = pcall(function() return Global.call("getOrderedPlayers", {true}) end)
+    if ok_ordered and ordered and type(ordered) == "table" and #ordered > 0 then
+        return ordered
     end
 
     return roster or {}
@@ -477,11 +477,18 @@ local function generate_preview_xml(active)
                 else
                     arcs_player = p
                 end
-                local ok, pl = pcall(function() return Player[(arcs_player and arcs_player.color) or p.color] end)
-                if ok and pl and pl.steam_name and pl.steam_name ~= "" then
-                    name = pl.steam_name
+                -- Try cached steam name first (survives player leaving), then live Player reference
+                local cached_name = nil
+                pcall(function() cached_name = Global.call("get_cached_steam_name", (arcs_player and arcs_player.color) or p.color) end)
+                if cached_name and cached_name ~= "" and cached_name ~= ((arcs_player and arcs_player.color) or p.color) then
+                    name = cached_name
                 else
-                    name = (arcs_player and arcs_player.color) or p.color
+                    local ok, pl = pcall(function() return Player[(arcs_player and arcs_player.color) or p.color] end)
+                    if ok and pl and pl.steam_name and pl.steam_name ~= "" then
+                        name = pl.steam_name
+                    else
+                        name = (arcs_player and arcs_player.color) or p.color
+                    end
                 end
             elseif type(p) == "string" then
                 -- try to resolve ArcsPlayer by color
@@ -489,8 +496,15 @@ local function generate_preview_xml(active)
                 if ok and ap then
                     arcs_player = ap
                 end
-                local ok2, pl = pcall(function() return Player[p] end)
-                if ok2 and pl and pl.steam_name and pl.steam_name ~= "" then name = pl.steam_name else name = p end
+                -- Try cached steam name first, then live Player reference
+                local cached_name = nil
+                pcall(function() cached_name = Global.call("get_cached_steam_name", p) end)
+                if cached_name and cached_name ~= "" and cached_name ~= p then
+                    name = cached_name
+                else
+                    local ok2, pl = pcall(function() return Player[p] end)
+                    if ok2 and pl and pl.steam_name and pl.steam_name ~= "" then name = pl.steam_name else name = p end
+                end
             else
                 name = tostring(p)
             end
@@ -786,6 +800,7 @@ local function open_preview(player, value, id)
         UI.setAttribute("sheetsSendBtn", "tooltip", "")
         UI.setAttribute("sheetsSendBtn", "tooltipBackgroundColor", "")
     end)
+    pcall(function() Global.call("refresh_player_steam_name_cache_from_seated") end)
     -- Prefer the stored game roster so a player leaving does not drop them from the sheet snapshot.
     local active = get_sheets_player_roster()
     -- broadcastToAll("Sheets preview: open_preview active count=" .. tostring(#active), {0.3,0.7,0.3})
@@ -794,15 +809,29 @@ local function open_preview(player, value, id)
     for _, p in ipairs(active) do
         local name = nil
         if type(p) == "table" and p.color then
-            local ok, pl = pcall(function() return Player[p.color] end)
-            if ok and pl and pl.steam_name and pl.steam_name ~= "" then
-                name = pl.steam_name
+            -- Try cached steam name first, then live Player reference
+            local cached_name = nil
+            pcall(function() cached_name = Global.call("get_cached_steam_name", p.color) end)
+            if cached_name and cached_name ~= "" and cached_name ~= p.color then
+                name = cached_name
             else
-                name = p.color
+                local ok, pl = pcall(function() return Player[p.color] end)
+                if ok and pl and pl.steam_name and pl.steam_name ~= "" then
+                    name = pl.steam_name
+                else
+                    name = p.color
+                end
             end
         elseif type(p) == "string" then
-            local ok, pl = pcall(function() return Player[p] end)
-            if ok and pl and pl.steam_name and pl.steam_name ~= "" then name = pl.steam_name else name = p end
+            -- Try cached steam name first, then live Player reference
+            local cached_name = nil
+            pcall(function() cached_name = Global.call("get_cached_steam_name", p) end)
+            if cached_name and cached_name ~= "" and cached_name ~= p then
+                name = cached_name
+            else
+                local ok, pl = pcall(function() return Player[p] end)
+                if ok and pl and pl.steam_name and pl.steam_name ~= "" then name = pl.steam_name else name = p end
+            end
         else
             name = tostring(p)
         end
@@ -825,7 +854,8 @@ _G["open_sheets_preview_ui"] = open_preview
 
 -- Build payload from active players and send to the webhook (used by preview Send Now)
 local function send_preview_to_sheet(player, value, id)
-    local active = Global.getVar("active_players") or Global.getTable("active_players") or {}
+    pcall(function() Global.call("refresh_player_steam_name_cache_from_seated") end)
+    local active = get_sheets_player_roster()
     local rows = {}
     for _, p in ipairs(active) do
         local color = nil
@@ -915,6 +945,31 @@ local function send_preview_to_sheet(player, value, id)
         rows_to_send = last_preview_rows
     else
         rows_to_send = rows
+    end
+
+    -- Always refresh names from current cache/live seat state so seat-takeovers
+    -- override any stale preview name values for the same color.
+    if rows_to_send and type(rows_to_send) == "table" then
+        for _, row in ipairs(rows_to_send) do
+            local color = row and row.color
+            if color and color ~= "" then
+                local updated_name = nil
+                local cached_name = nil
+                pcall(function() cached_name = Global.call("get_cached_steam_name", color) end)
+                if cached_name and cached_name ~= "" and cached_name ~= color then
+                    updated_name = cached_name
+                else
+                    local ok, pl = pcall(function() return Player[color] end)
+                    if ok and pl and pl.steam_name and pl.steam_name ~= "" then
+                        updated_name = pl.steam_name
+                    else
+                        updated_name = color
+                    end
+                end
+                row.full_name = updated_name
+                row.name = updated_name
+            end
+        end
     end
 
     -- Apply anonymization if checkbox is enabled

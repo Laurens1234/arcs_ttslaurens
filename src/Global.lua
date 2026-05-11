@@ -114,6 +114,83 @@ initiative_player_position = {-2, 0, 0}
 
 active_players = {}
 starting_players = {}
+
+-- Cache player steam names early so they survive if players leave before submission
+local player_steam_name_cache = {}
+function cache_player_steam_names()
+    player_steam_name_cache = {}
+    local seated = getSeatedPlayers()
+    if seated and #seated > 0 then
+        for _, color in ipairs(seated) do
+            local ok, player = pcall(function() return Player[color] end)
+            if ok and player and player.steam_name and player.steam_name ~= "" then
+                player_steam_name_cache[color] = player.steam_name
+            else
+                player_steam_name_cache[color] = color
+            end
+        end
+    end
+    Global.setVar("player_steam_name_cache", player_steam_name_cache)
+end
+
+  -- Update cache from currently seated players without clearing existing entries.
+  -- This preserves names for disconnected players while allowing seat-takeover overrides.
+  function refresh_player_steam_name_cache_from_seated()
+    local cache = Global.getVar("player_steam_name_cache") or player_steam_name_cache or {}
+    local seated = getSeatedPlayers()
+    if seated and #seated > 0 then
+      for _, color in ipairs(seated) do
+        local ok, player = pcall(function() return Player[color] end)
+        if ok and player and player.steam_name and player.steam_name ~= "" then
+          cache[color] = player.steam_name
+        else
+          cache[color] = color
+        end
+      end
+    end
+    player_steam_name_cache = cache
+    Global.setVar("player_steam_name_cache", player_steam_name_cache)
+  end
+
+  local function update_cached_steam_name_for_color(color)
+    if not color or color == "" or color == "Grey" then return end
+    local cache = Global.getVar("player_steam_name_cache") or player_steam_name_cache or {}
+    local ok, player = pcall(function() return Player[color] end)
+    if ok and player and player.steam_name and player.steam_name ~= "" then
+      cache[color] = player.steam_name
+    else
+      cache[color] = color
+    end
+    player_steam_name_cache = cache
+    Global.setVar("player_steam_name_cache", player_steam_name_cache)
+  end
+
+  function onPlayerConnect(player)
+    local color = nil
+    pcall(function()
+      if player and player.color then color = tostring(player.color) end
+    end)
+    if color and color ~= "" and color ~= "Grey" then
+      update_cached_steam_name_for_color(color)
+    end
+  end
+
+  function onPlayerChangeColor(player_color)
+    local color = tostring(player_color or "")
+    if color ~= "" and color ~= "Grey" then
+      update_cached_steam_name_for_color(color)
+    end
+    Wait.time(function()
+      refresh_player_steam_name_cache_from_seated()
+    end, 0.2)
+  end
+
+-- Retrieve cached steam name for a player, fallback to color if not cached
+function get_cached_steam_name(color)
+    local cache = Global.getVar("player_steam_name_cache") or {}
+    return cache[color] or color
+end
+
 active_ambitions = {
     c9e0ee = "",
     a9b02a = "",
@@ -2836,6 +2913,9 @@ function save_game_starting_players()
   end
 
   Global.setVar("starting_players", starting_players)
+  
+  -- Cache player steam names at the point of setup
+  cache_player_steam_names()
 end
 
 function setup_custom_game()
@@ -2854,6 +2934,10 @@ function setup_custom_game()
         table.insert(active_players, ArcsPlayer:new{ color = v })
       end
     end
+    
+    -- Cache player steam names early so they survive if players leave
+    cache_player_steam_names()
+    
     local active_player_colors = {}
     for _, v in ipairs(active_players) do
       table.insert(active_player_colors, v.color)
@@ -2997,6 +3081,10 @@ function onLoad(script_state)
       if state.settings then
         is_face_up_discard_active = state.settings.is_face_up_discard_active or is_face_up_discard_active
         is_basegame_setup = state.settings.is_basegame_setup or is_basegame_setup
+       end
+       if state.player_steam_name_cache then
+         player_steam_name_cache = state.player_steam_name_cache
+         Global.setVar("player_steam_name_cache", player_steam_name_cache)
       end
     end
   end
@@ -3040,17 +3128,50 @@ function onLoad(script_state)
           Global.setVar("game_id", game_id)
         end
         broadcastToAll("Loading game in progress")
+        active_players = {}
+        local loaded_colors = nil
+        if loaded_state and type(loaded_state.active_player_colors) == "table" and #loaded_state.active_player_colors > 0 then
+          loaded_colors = loaded_state.active_player_colors
+        end
 
-        for _, v in ipairs({"Red", "White", "Yellow", "Teal", "Pink"}) do
+        if loaded_colors then
+          for _, v in ipairs(loaded_colors) do
+            if v and v ~= "" then
+              local arcs_player = ArcsPlayer:new{ color = v }
+              table.insert(active_players, arcs_player)
+            end
+          end
+        else
+          for _, v in ipairs({"Red", "White", "Yellow", "Teal", "Pink"}) do
             local player_board = getObjectFromGUID(
                 player_pieces_GUIDs[v].player_board)
-            if (player_board.getDescription() == "active") then
+            if player_board and (player_board.getDescription() == "active") then
                 local arcs_player = ArcsPlayer:new{
                     color = v
                 }
                 table.insert(active_players, arcs_player)
             end
+          end
         end
+
+        -- Rebuild starting_players from restored active players so external modules
+        -- keep a stable roster even if players disconnect.
+        starting_players = {}
+        for _, p in ipairs(active_players) do
+          table.insert(starting_players, p)
+        end
+        Global.setVar("starting_players", starting_players)
+              -- Update cache with currently seated players (preserves saved names as fallback)
+              local seated = getSeatedPlayers()
+              if seated and #seated > 0 then
+                for _, color in ipairs(seated) do
+                  local ok, player = pcall(function() return Player[color] end)
+                  if ok and player and player.steam_name and player.steam_name ~= "" then
+                    player_steam_name_cache[color] = player.steam_name
+                    Global.setVar("player_steam_name_cache", player_steam_name_cache)
+                  end
+                end
+              end
 
         -- Ensure player boards for colors not active remain hidden
         local all_colors = {"Red", "White", "Yellow", "Teal", "Pink"}
@@ -3151,6 +3272,13 @@ function onLoad(script_state)
 end
 
   function onSave()
+    local active_player_colors = {}
+    for _, p in ipairs(active_players or {}) do
+      if p and p.color and p.color ~= "" then
+        table.insert(active_player_colors, p.color)
+      end
+    end
+
     local state = {
       game_id = game_id,
       initiative = {
@@ -3160,7 +3288,9 @@ end
       settings = {
         is_face_up_discard_active = is_face_up_discard_active,
         is_basegame_setup = is_basegame_setup
-      }
+       },
+       player_steam_name_cache = player_steam_name_cache or {},
+       active_player_colors = active_player_colors
     }
     return JSON.encode(state)
   end
