@@ -744,7 +744,6 @@ local function generate_preview_xml(active)
                 %s
                 <HorizontalLayout spacing="8" childForceExpandWidth="false">
                     <Button text="Send Result" onClick="send_preview_to_sheet_ui" color="#2e8b57" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="16" />
-                    <Button text="Close" onClick="loadCameraTimerMenu" color="#888888" textColor="white" width="80" height="36" preferredWidth="80" preferredHeight="36" fontSize="16" />
                     <Text text="Notes:" color="#dcdcdc" fontSize="14" preferredWidth="60" />
                     <InputField id="sheetsNotesInput" text="" characterLimit="500" contentType="TextArea" placeholder="Add notes here..." preferredWidth="400" preferredHeight="18" onValueChanged="update_notes_field" />
                     <Text text="Mode/Act:" color="#dcdcdc" fontSize="14" preferredWidth="40" />
@@ -760,6 +759,7 @@ local function generate_preview_xml(active)
                     <Text text="Anonymize" color="#dcdcdc" fontSize="12" preferredWidth="80" />
                     <Panel preferredWidth="1" flexibleWidth="1" />
                     <Button text="Request Remove &#10;Last Submission" onClick="send_remove_request_ui" color="#bb1717d0" textColor="white" width="120" height="36" preferredWidth="120" preferredHeight="36" fontSize="14" />
+                    <Button text="Close" onClick="loadCameraTimerMenu" color="#888888" textColor="white" width="80" height="36" preferredWidth="80" preferredHeight="36" fontSize="16" />
                 </HorizontalLayout>
             </VerticalLayout>
         </Panel>
