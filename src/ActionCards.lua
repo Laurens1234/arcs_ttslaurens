@@ -184,6 +184,12 @@ function ActionCards.clear_played()
     local union_marked_cards = ActionCards.union_handling(played_objects)
     local union_center_card_offset = 0
 
+    local union_like_names = {
+        ["THE PROPHET"] = true,
+        ["THE YOUNG LIGHT"] = true,
+        ["THE PRODIGAL ONE"] = true
+    }
+
     -- clean up
     for ct, obj in ipairs(played_objects) do
         if (obj.getName() ~= "Action Card") and obj.hasTag("Resource") then
@@ -209,12 +215,19 @@ function ActionCards.clear_played()
                 ActionCards.to_face_down_discard(obj)
             end
         elseif (obj.getName() ~= "Action Card") and obj.hasTag("Court") and not string.find(obj.getDescription(), "Union") then
+            local obj_name = obj.getName and obj.getName() or ""
+            local upper_name = string.upper(obj_name)
+            if union_like_names[upper_name] then
+                -- These cards are handled in union_handling and should stay in center area.
+                goto continue_cleanup
+            end
             local court_discard = getObjectFromGUID(court_discard_zone_GUID)
             if court_discard then
                 obj.setPositionSmooth(court_discard.getPosition() + Vector({0, 3, 0}))
                 obj.setRotationSmooth(Vector({0, 270, 0}))
             end
         end
+        ::continue_cleanup::
     end
 
     return true
@@ -535,10 +548,26 @@ function ActionCards.union_handling(played_objects)
     LOG.INFO("ActionCards.union_handling")
 
     local union_marked_cards = {}
+    local union_like_names = {
+        ["THE PROPHET"] = true,
+        ["THE YOUNG LIGHT"] = true,
+        ["THE PRODIGAL ONE"] = true
+    }
+    local function move_to_union_like_fixed_spot(trigger_card)
+        if not trigger_card then return end
+        -- Fixed world-space destination for special union-like cards.
+        trigger_card.setPositionSmooth({3.25, 2.06, -0.64})
+        trigger_card.setRotationSmooth(Vector({0, 180, 0}))
+    end
 
     for _, obj in pairs(played_objects) do
-        -- Check if the card name contains "UNION" instead of checking tags
-        if obj.getName() and string.find(string.upper(obj.getName()), "UNION") then
+        local obj_name = obj.getName and obj.getName() or ""
+        local upper_name = string.upper(obj_name)
+        local is_named_union_like = union_like_names[upper_name] == true
+        local is_union_like = string.find(upper_name, "UNION") ~= nil or is_named_union_like
+
+        -- Check if the card name contains "UNION" or matches one of the union-like names.
+        if is_union_like then
             -- Find the closest face up action card
             local closest_face_up_action_card = nil
             local min_distance = 20
@@ -557,18 +586,27 @@ function ActionCards.union_handling(played_objects)
                 table.insert(union_marked_cards, {
                     guid = closest_face_up_action_card.guid,
                     description = closest_face_up_action_card.getDescription(),
-                    reserved_by = obj.getName()
+                    reserved_by = obj_name
                 })
-                broadcastToAll("Whoever played " .. obj.getName() .. ", please pull " .. closest_face_up_action_card.getDescription() .. " back into your hand.")
+                broadcastToAll("Whoever played " .. obj_name .. ", please pull " .. closest_face_up_action_card.getDescription() .. " back into your hand.")
 
-                -- Move the union card to court discard
-                local court_discard = getObjectFromGUID(court_discard_zone_GUID)
-                if court_discard then
-                    obj.setPositionSmooth(court_discard.getPosition() + Vector({0, 3, 0}))
-                    obj.setRotationSmooth(Vector({0, 270, 0}))
+                if is_named_union_like then
+                    -- For specific union-like cards, move to one fixed middle-map spot.
+                    move_to_union_like_fixed_spot(obj)
+                else
+                    -- Move regular union trigger cards to court discard.
+                    local court_discard = getObjectFromGUID(court_discard_zone_GUID)
+                    if court_discard then
+                        obj.setPositionSmooth(court_discard.getPosition() + Vector({0, 3, 0}))
+                        obj.setRotationSmooth(Vector({0, 270, 0}))
+                    end
                 end
             else
                 broadcastToAll("Union card in play but no face up action cards to mark for union recall", Color.Red)
+                if is_named_union_like then
+                    -- Still place these cards in center area even if no action card was marked.
+                    move_to_union_like_fixed_spot(obj)
+                end
             end
         end
     end
