@@ -41,7 +41,6 @@ local newCards = {
     "Iconoclast",
     "Fiend",
     "Hustler",
-
     "Curator",
     "Cartographer",
     "Custodian",
@@ -99,7 +98,15 @@ local newCards = {
     "Marauder",
     "Berserker",
     "Underwriter",
-    "Doppelganger"
+    "Doppelganger",
+    "Bulwark",
+    "Demon",
+    "Soulbinder",
+    "Vessel",
+    "Conqueror",
+    "Comedian",
+    "Animator",
+    "Merchant"
 }
 
 function onLoad()

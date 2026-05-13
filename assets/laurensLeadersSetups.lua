@@ -533,7 +533,7 @@ starting_pieces["Alchemist"] = {
     ships = 3
   },
   B = {
-    building = "city",
+    building = "starport",
     ships = 3
   },
   C = {
@@ -865,11 +865,11 @@ starting_pieces["Iconoclast"] = {
 -- Fiend
 starting_pieces["Fiend"] = {
   A = {
-    building = "city",
+    building = "None",
     ships = 3
   },
   B = {
-    building = "starport",
+    building = "None",
     ships = 3
   },
   C = {
@@ -1264,11 +1264,11 @@ starting_pieces["Collector"] = {
 -- Samurai
 starting_pieces["Samurai"] = {
   A = {
-    building = "starport",
+    building = "city",
     ships = 3
   },
   B = {
-    building = "None",
+    building = "starport",
     ships = 3
   },
   C = {
@@ -2119,5 +2119,26 @@ starting_pieces["Doppelganger"] = {
   D = {
     building = "None",
     ships = 2
+  }
+}
+
+-- zGambler
+starting_pieces["zGambler"] = {
+  A = {
+    building = "city",
+    ships = 3
+  },
+  B = {
+    building = "starport",
+    ships = 3
+  },
+  C = {
+    building = "None",
+    ships = 3
+  },
+  resources = {"Psionic", "Weapon"},
+  D = {
+    building = "None",
+    ships = 3
   }
 }

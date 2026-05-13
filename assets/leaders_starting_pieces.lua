@@ -2122,8 +2122,8 @@ starting_pieces["Doppelganger"] = {
   }
 }
 
--- zGambler
-starting_pieces["zGambler"] = {
+-- Bulwark
+starting_pieces["Bulwark"] = {
   A = {
     building = "city",
     ships = 3
@@ -2140,5 +2140,152 @@ starting_pieces["zGambler"] = {
   D = {
     building = "None",
     ships = 3
+  }
+}
+
+-- Demon
+starting_pieces["Demon"] = {
+  A = {
+    building = "city",
+    ships = 3
+  },
+  B = {
+    building = "city",
+    ships = 3
+  },
+  C = {
+    building = "None",
+    ships = 3
+  },
+  resources = {"Weapon", "Material"},
+  D = {
+    building = "None",
+    ships = 3
+  }
+}
+
+-- Soulbinder
+starting_pieces["Soulbinder"] = {
+  A = {
+    building = "city",
+    ships = 3
+  },
+  B = {
+    building = "starport",
+    ships = 3
+  },
+  C = {
+    building = "None",
+    ships = 2
+  },
+  resources = {"Psionic", "Weapon"},
+  D = {
+    building = "None",
+    ships = 2
+  }
+}
+
+-- Vessel
+starting_pieces["Vessel"] = {
+  A = {
+    building = "city",
+    ships = 3
+  },
+  B = {
+    building = "starport",
+    ships = 3
+  },
+  C = {
+    building = "None",
+    ships = 2
+  },
+  resources = {"Psionic", "Weapon"},
+  D = {
+    building = "None",
+    ships = 2
+  }
+}
+
+-- Conqueror
+starting_pieces["Conqueror"] = {
+  A = {
+    building = "city",
+    ships = 3
+  },
+  B = {
+    building = "starport",
+    ships = 3
+  },
+  C = {
+    building = "None",
+    ships = 2
+  },
+  resources = {"Weapon", "Weapon"},
+  D = {
+    building = "None",
+    ships = 2
+  }
+}
+
+-- Comedian
+starting_pieces["Comedian"] = {
+  A = {
+    building = "city",
+    ships = 3
+  },
+  B = {
+    building = "starport",
+    ships = 3
+  },
+  C = {
+    building = "None",
+    ships = 2
+  },
+  resources = {"Psionic", "Fuel"},
+  D = {
+    building = "None",
+    ships = 2
+  }
+}
+
+-- Animator
+starting_pieces["Animator"] = {
+  A = {
+    building = "city",
+    ships = 3
+  },
+  B = {
+    building = "starport",
+    ships = 3
+  },
+  C = {
+    building = "None",
+    ships = 2
+  },
+  resources = {"Material", "Psionic"},
+  D = {
+    building = "None",
+    ships = 2
+  }
+}
+
+-- Merchant
+starting_pieces["Merchant"] = {
+  A = {
+    building = "city",
+    ships = 3
+  },
+  B = {
+    building = "starport",
+    ships = 3
+  },
+  C = {
+    building = "None",
+    ships = 2
+  },
+  resources = {"Material", "Relic"},
+  D = {
+    building = "None",
+    ships = 2
   }
 }
