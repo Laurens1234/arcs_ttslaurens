@@ -163,6 +163,44 @@ local function get_player_guid(color, key)
     return nil
 end
 
+local SCORE_BUTTON_LABEL_INDICES = {
+    power = 0,
+    objective = 14,
+    hand_size = 2,
+    tycoon = 4,
+    captives = 6,
+    trophies = 8,
+    keeper = 10,
+    empath = 12,
+}
+
+local function read_score_button_labels(score_board, scores)
+    if not score_board or type(score_board.getButtons) ~= "function" then
+        return scores
+    end
+
+    local ok, buttons = pcall(function() return score_board.getButtons() end)
+    if not ok or not buttons then
+        return scores
+    end
+
+    local labels_by_index = {}
+    for _, button in ipairs(buttons) do
+        if button.index ~= nil then
+            labels_by_index[button.index] = button.label
+        end
+    end
+
+    for key, index in pairs(SCORE_BUTTON_LABEL_INDICES) do
+        local label = labels_by_index[index]
+        if label ~= nil and tostring(label) ~= "" then
+            scores[key] = tostring(label)
+        end
+    end
+
+    return scores
+end
+
 local function resolve_initiative_player_color()
     local initiative_guids = { initiative_GUID, seized_initiative_GUID }
     local seated = {}
@@ -528,36 +566,24 @@ local function generate_preview_xml(active)
                         pcall(function() sb = getObjectFromGUID(sb_guid) end)
                     end
                 end
-                if sb and type(sb.getButtons) == "function" then
-                    local ok, btns = pcall(function() return sb.getButtons() end)
-                    if ok and btns then
-                        local btnMap = {}
-                        for _, b in ipairs(btns) do
-                            if b.index ~= nil then btnMap[b.index] = b.label end
-                        end
-                        -- Debug: broadcast the button labels we found for this score_board
-                        local dbg = {}
-                        for idx, lbl in pairs(btnMap) do table.insert(dbg, tostring(idx) .. ":" .. tostring(lbl)) end
-                        if #dbg > 0 then
-                            -- broadcastToAll("Sheets preview: score_board labels for " .. tostring(name) .. " -> " .. table.concat(dbg, ", "), {0.4,0.6,1})
-                        else
-                            -- broadcastToAll("Sheets preview: no score_board labels found for " .. tostring(name), {1,0.6,0.2})
-                        end
-                        local function labelOr(orig, idx)
-                            local v = btnMap[idx]
-                            if v == nil or tostring(v) == "" then return orig end
-                            return tostring(v)
-                        end
-                        power = labelOr(power, 0)
-                        objective = labelOr(objective, 14)
-                        hand_size = labelOr(hand_size, 2)
-                        tycoon = labelOr(tycoon, 4)
-                        captives = labelOr(captives, 6)
-                        trophies = labelOr(trophies, 8)
-                        keeper = labelOr(keeper, 10)
-                        empath = labelOr(empath, 12)
-                    end
-                end
+                local score_labels = read_score_button_labels(sb, {
+                    power = power,
+                    objective = objective,
+                    hand_size = hand_size,
+                    tycoon = tycoon,
+                    captives = captives,
+                    trophies = trophies,
+                    keeper = keeper,
+                    empath = empath,
+                })
+                power = score_labels.power
+                objective = score_labels.objective
+                hand_size = score_labels.hand_size
+                tycoon = score_labels.tycoon
+                captives = score_labels.captives
+                trophies = score_labels.trophies
+                keeper = score_labels.keeper
+                empath = score_labels.empath
             end
 
             -- Gather cards from the player's area and hand (use ActionCards.get_info when available)
@@ -896,26 +922,24 @@ local function send_preview_to_sheet(player, value, id)
                 local sb_guid = get_player_guid(arcs_player.color, "score_board")
                 if sb_guid then pcall(function() sb = getObjectFromGUID(sb_guid) end) end
             end
-            if sb and type(sb.getButtons) == "function" then
-                local ok, btns = pcall(function() return sb.getButtons() end)
-                if ok and btns then
-                    local btnMap = {}
-                    for _, b in ipairs(btns) do if b.index ~= nil then btnMap[b.index] = b.label end end
-                    local function labelOr(orig, idx)
-                        local v = btnMap[idx]
-                        if v == nil or tostring(v) == "" then return orig end
-                        return tostring(v)
-                    end
-                    power = labelOr(power, 0)
-                    objective = labelOr(objective, 1)
-                    hand_size = labelOr(hand_size, 2)
-                    tycoon = labelOr(tycoon, 4)
-                    captives = labelOr(captives, 6)
-                    trophies = labelOr(trophies, 8)
-                    keeper = labelOr(keeper, 10)
-                    empath = labelOr(empath, 12)
-                end
-            end
+            local score_labels = read_score_button_labels(sb, {
+                power = power,
+                objective = objective,
+                hand_size = hand_size,
+                tycoon = tycoon,
+                captives = captives,
+                trophies = trophies,
+                keeper = keeper,
+                empath = empath,
+            })
+            power = score_labels.power
+            objective = score_labels.objective
+            hand_size = score_labels.hand_size
+            tycoon = score_labels.tycoon
+            captives = score_labels.captives
+            trophies = score_labels.trophies
+            keeper = score_labels.keeper
+            empath = score_labels.empath
         end
 
         -- detect initiative for this row as well
