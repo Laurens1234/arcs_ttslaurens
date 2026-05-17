@@ -178,4 +178,18 @@ end
 
 _G["send_overlay_update_ui"] = send_overlay_update
 
+local function clear_overlay()
+    local payload = { source = "tts", timestamp = os.time(), players = {}, turn_order = {}, align = (_G["overlay_align"] or "left"), hide_cards = true }
+    local body_json = JSON.encode(payload)
+    local headers = { ["Content-Type"] = "application/json" }
+
+    if not WebRequest or not WebRequest.custom then
+        return
+    end
+
+    WebRequest.custom(LOCAL_OVERLAY_URL, "POST", true, body_json, headers, function(_) end)
+end
+
+_G["clear_overlay_ui"] = clear_overlay
+
 return SheetsSenderOverlay

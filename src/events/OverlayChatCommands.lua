@@ -8,6 +8,14 @@ local function trigger_overlay_update()
   end)
 end
 
+local function clear_overlay()
+  pcall(function()
+    if _G["clear_overlay_ui"] then
+      _G["clear_overlay_ui"]()
+    end
+  end)
+end
+
 function OverlayChatCommands.handle(message)
   local msg = tostring(message or "")
   local s = string.lower(msg)
@@ -20,6 +28,7 @@ function OverlayChatCommands.handle(message)
   elseif string.match(s, "^!overlay%s+stop") then
     overlay_sending_enabled = false
     broadcastToAll("Overlay sending DISABLED.", {0.8, 0.2, 0.2})
+    clear_overlay()
     return true
   elseif string.match(s, "^!overlay%s+once") then
     trigger_overlay_update()
