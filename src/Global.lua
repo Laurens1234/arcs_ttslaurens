@@ -662,14 +662,13 @@ function apply_ambition_scores_to_power_menu(player_color, position, clicked_obj
   local power_zero_x = -13.26
   local power_cubes = getObjectsWithTag("power") or {}
   local function power_from_x(x)
-    local p = math.floor(((x - power_zero_x) / power_step) + 0.0001)
+    local p = math.floor((x + 13.26) / 0.655)
     if p < 0 then p = 0 end
     return p
   end
-  local function snap_power_x(x)
-    local steps = (x - power_zero_x) / power_step
-    local snapped_steps = math.floor(steps + 0.5)
-    return power_zero_x + (snapped_steps * power_step)
+  local function x_from_power(power_value)
+    -- Small epsilon keeps us inside the intended floor bucket.
+    return power_zero_x + (power_value * power_step) + 0.001
   end
 
   for color, gain in pairs(breakdown.totals) do
@@ -687,10 +686,9 @@ function apply_ambition_scores_to_power_menu(player_color, position, clicked_obj
       if cube and cube.getPosition then
         local pos = cube.getPosition()
         local start_power = power_from_x(pos.x)
-        -- Clamp from below: any position left of zero counts as zero for movement.
-        local start_x = pos.x
-        if start_x < power_zero_x then start_x = power_zero_x end
-        pos.x = snap_power_x(start_x + (delta * power_step))
+        local target_power = start_power + delta
+        if target_power < 0 then target_power = 0 end
+        pos.x = x_from_power(target_power)
         local end_power = power_from_x(pos.x)
         cube.setPosition(pos)
         table.insert(moved_parts, tostring(color) .. ": " .. tostring(start_power) .. " -> " .. tostring(end_power) .. " (+" .. tostring(delta) .. ")")
@@ -702,6 +700,15 @@ function apply_ambition_scores_to_power_menu(player_color, position, clicked_obj
 
   if #moved_parts == 0 then
     broadcastToAll("No ambition power gain to apply.", {0.8, 0.8, 0.8})
+  else
+    -- Recompute displayed scores after moving power cubes.
+    -- Run multiple delayed passes to handle slower physics/snap settling.
+    local refresh_delays = {0.35, 0.9, 1.8}
+    for _, delay in ipairs(refresh_delays) do
+      Wait.time(function()
+        Global.call("update_player_scores")
+      end, delay)
+    end
   end
 end
 
