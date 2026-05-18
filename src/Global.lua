@@ -202,6 +202,7 @@ zoneWaits = {}
 draw_bottom_patched = {}
 local OverlayChatCommands = require("src/events/OverlayChatCommands")
 local DropActionEvents = require("src/events/DropActionEvents")
+local score_ambitions_run_id = 0
 
 -- Scan the action deck zone periodically and attach the "Draw bottom card" menu
 function scan_action_deck_zone()
@@ -646,6 +647,8 @@ end
 
 -- Compute ambition gains and move each player's power cube to the right by total gain.
 function apply_ambition_scores_to_power_menu(player_color, position, clicked_object)
+  score_ambitions_run_id = score_ambitions_run_id + 1
+  local run_id = score_ambitions_run_id
   Global.call("update_player_scores")
   local breakdown = Global.getVar("ambition_point_estimates_detailed")
   if not breakdown or not breakdown.totals then
@@ -709,6 +712,103 @@ function apply_ambition_scores_to_power_menu(player_color, position, clicked_obj
         Global.call("update_player_scores")
       end, delay)
     end
+
+    -- After score updates settle, check win threshold and prompt result submission.
+    Wait.time(function()
+      if run_id ~= score_ambitions_run_id then
+        return
+      end
+
+      pcall(function()
+        Global.call("update_player_scores")
+      end)
+
+      -- Skip win-congrats + submission prompt during campaign games.
+      local is_campaign_game = false
+      pcall(function()
+        local campaign_rules = getObjectFromGUID(Campaign.guids.rules)
+        if campaign_rules and campaign_rules.getDescription and campaign_rules.getDescription() == "active" then
+          is_campaign_game = true
+        end
+      end)
+      if is_campaign_game then
+        return
+      end
+
+      local player_count = #active_players
+      local win_threshold = 27
+      if player_count == 2 then
+        win_threshold = 33
+      elseif player_count == 3 then
+        win_threshold = 30
+      end
+
+      local contenders = {}
+      for _, p in ipairs(active_players) do
+        local score = tonumber(p and p.power) or 0
+        if score > win_threshold then
+          table.insert(contenders, { color = tostring(p.color or "Player"), score = score })
+        end
+      end
+
+      if #contenders == 0 then
+        return
+      end
+
+      local best_score = -999999
+      for _, c in ipairs(contenders) do
+        if c.score > best_score then
+          best_score = c.score
+        end
+      end
+
+      local tied = {}
+      for _, c in ipairs(contenders) do
+        if c.score == best_score then
+          table.insert(tied, c)
+        end
+      end
+
+      local winner = tied[1]
+      if #tied > 1 then
+        local initiative_color = tostring(initiative_player or "")
+        if initiative_color ~= "" then
+          for _, c in ipairs(tied) do
+            if c.color == initiative_color then
+              winner = c
+              break
+            end
+          end
+
+          if winner == tied[1] and winner.color ~= initiative_color then
+            local tied_by_color = {}
+            for _, c in ipairs(tied) do
+              tied_by_color[c.color] = c
+            end
+            local ordered = getOrderedPlayersStartingWith(initiative_color)
+            for _, p in ipairs(ordered or {}) do
+              local color = tostring(p and p.color or "")
+              if tied_by_color[color] then
+                winner = tied_by_color[color]
+                break
+              end
+            end
+          end
+        end
+      end
+
+      if winner then
+        broadcastToAll("Congrats " .. winner.color .. " - you win with " .. tostring(winner.score) .. " Power!", Color.Green)
+      end
+
+      if _G["open_sheets_preview_ui"] then
+        pcall(function()
+          _G["open_sheets_preview_ui"](player_color, "", "")
+        end)
+      end
+
+      broadcastToAll("Do you want to submit the game result now? The Sheets window is open.", {0.6, 1, 0.6})
+    end, 2.1)
   end
 end
 
